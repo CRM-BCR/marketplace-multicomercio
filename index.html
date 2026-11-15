@@ -170,7 +170,7 @@
 
     <script>
         const SUPABASE_URL = (typeof SUPABASE_CONFIG !== 'undefined' && SUPABASE_CONFIG.URL) ? SUPABASE_CONFIG.URL : 'https://bjfwastcdortcqoisjpv.supabase.co';
-        const SUPABASE_KEY = (typeof SUPABASE_CONFIG !== 'undefined' && SUPABASE_CONFIG.KEY) ? SUPABASE_CONFIG.KEY : 'sb_publishable_qMGJ6y1WePCDg3SCU9ZZg_Dg7hfRop';
+        const SUPABASE_KEY = (typeof SUPABASE_CONFIG !== 'undefined' && SUPABASE_CONFIG.KEY) ? SUPABASE_CONFIG.KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqZndhc3RjZG9ydGNxb2lzanB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3MDA3MjQsImV4cCI6MjExMDI3NjcyNH0.ROOV5TB7xDV0zPIbCpNBpP3zp3vR7wkqwitUeKOPu1k';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let productosGlobal = [];
@@ -307,7 +307,6 @@
             });
             const nroTicket = String(maxTicket + 1).padStart(8, '0');
 
-            // Solo tomar vendedores activos
             const { data: vendedores } = await _supabase.from('vendedores_comercio').select('*').eq('duenio_email', duenioEmail).eq('activo', true);
             
             let vendedorAsignado = null;
@@ -380,7 +379,6 @@
                     autorizado = true;
                     rolDetectado = 'ADMINISTRADOR';
                 } else {
-                    // Verificar si es un vendedor registrado
                     const { data: vendedorObj } = await _supabase.from('vendedores_comercio').select('*').eq('email', email).eq('activo', true).single();
                     if (vendedorObj) {
                         autorizado = true;
@@ -437,7 +435,6 @@
             }
         }
 
-        // PANEL DE VENDEDOR PARA GESTIONAR SUS PEDIDOS
         async function renderPanelVendedor() {
             const contenedor = document.getElementById('contenido-privado-dinamico');
             const { data: pedidos } = await _supabase.from('pedidos_marketplace').select('*').or(`vendedor_asignado_email.eq.${usuarioActual.email},vendedor_asignado_telefono.eq.${usuarioActual.telefono}`);
@@ -528,8 +525,8 @@
                                     <input type="number" id="admin-prod-stock" placeholder="Cantidad disponible" class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">URL de Imagen (Opcional)</label>
-                                    <input type="text" id="admin-prod-img" placeholder="https://..." class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                    <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Imagen del Producto (Archivo)</label>
+                                    <input type="file" id="admin-prod-img-file" accept="image/*" class="w-full p-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white file:mr-3 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-red-600 file:text-white hover:file:bg-red-500 cursor-pointer">
                                 </div>
                             </div>
                             <div>
@@ -545,21 +542,43 @@
 
         async function adminGuardarProducto() {
             const duenioEmail = document.getElementById('admin-duenio-select').value;
+            const nombre = document.getElementById('admin-prod-nombre').value.trim();
+            const precio = parseFloat(document.getElementById('admin-prod-precio').value);
+            const stock = parseInt(document.getElementById('admin-prod-stock').value);
+            const desc = document.getElementById('admin-prod-desc').value.trim();
+            const fileInput = document.getElementById('admin-prod-img-file');
+
+            if (!nombre || isNaN(precio) || isNaN(stock)) {
+                alert('Por favor completa los campos obligatorios (Nombre, Precio y Stock).');
+                return;
+            }
+
+            let imagenUrl = '';
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                imagenUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+            }
+
             const nuevo = {
                 duenio_email: duenioEmail,
-                nombre_producto: document.getElementById('admin-prod-nombre').value,
-                precio: parseFloat(document.getElementById('admin-prod-precio').value),
-                stock: parseInt(document.getElementById('admin-prod-stock').value),
-                imagen_url: document.getElementById('admin-prod-img').value,
-                descripcion: document.getElementById('admin-prod-desc').value
+                nombre_producto: nombre,
+                precio: precio,
+                stock: stock,
+                imagen_url: imagenUrl,
+                descripcion: desc
             };
+
             const { error } = await _supabase.from('productos_marketplace').insert([nuevo]);
             if (!error) {
                 alert(`¡Producto cargado con éxito para el comercio ${duenioEmail}!`);
                 document.getElementById('admin-prod-nombre').value = '';
                 document.getElementById('admin-prod-precio').value = '';
                 document.getElementById('admin-prod-stock').value = '';
-                document.getElementById('admin-prod-img').value = '';
+                document.getElementById('admin-prod-img-file').value = '';
                 document.getElementById('admin-prod-desc').value = '';
                 cargarProductosPublicos();
             } else {
