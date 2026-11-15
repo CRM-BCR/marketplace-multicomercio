@@ -51,20 +51,25 @@
         </div>
     </div>
 
-    <!-- Modal Estilo CRM para Registrar / Modificar Usuario Vendedor -->
+    <!-- Modal Estilo CRM Dinámico para Registrar / Modificar Usuario -->
     <div id="modal-usuario-crm" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center z-50">
         <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-2xl w-full max-w-lg relative border border-slate-700">
             <button onclick="cerrarModalUsuario()" class="absolute top-4 right-4 text-slate-400 hover:text-white font-bold text-xl">&times;</button>
-            <h3 id="modal-usuario-titulo" class="text-xl font-bold mb-4 text-indigo-400">Registrar Nuevo Usuario Vendedor</h3>
+            <h3 id="modal-usuario-titulo" class="text-xl font-bold mb-4 text-indigo-400">Registrar Nuevo Usuario</h3>
             
             <form id="form-usuario-crm" onsubmit="guardarUsuarioModal(event)" class="space-y-4">
                 <input type="hidden" id="usuario-edit-id">
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Comercio Afiliado / Asignación</label>
-                    <select id="modal-comercio" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <option value="negocio.01@gmail.com">negocio.01@gmail.com</option>
-                        <option value="negocio.02@gmail.com">negocio.02@gmail.com</option>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Rol del Usuario</label>
+                    <select id="modal-rol" onchange="onCambioRolModal()" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="Vendedor">Vendedor</option>
+                        <option value="Dueño de Negocio">Dueño de Negocio</option>
+                        <option value="Administrador">Administrador</option>
                     </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Comercio Afiliado / Asignación</label>
+                    <input type="text" id="modal-comercio" required placeholder="Ej. negocio.01@gmail.com o Global" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Nombre Completo</label>
@@ -72,11 +77,11 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Correo Electrónico</label>
-                    <input type="email" id="modal-email" required placeholder="Ej. vendedor.01@gmail.com" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="email" id="modal-email" required placeholder="Ej. usuario@gmail.com" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Número de Teléfono / WhatsApp</label>
-                    <input type="text" id="modal-telefono" required placeholder="Ej. +584122349994" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <div id="grupo-telefono">
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Número de Teléfono / WhatsApp (Requerido para Vendedor)</label>
+                    <input type="text" id="modal-telefono" placeholder="Ej. +584122349994" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div class="flex justify-end space-x-3 pt-3 border-t border-slate-800">
                     <button type="button" onclick="cerrarModalUsuario()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-sm font-semibold transition">Cancelar</button>
@@ -450,9 +455,9 @@
                         id: v.id,
                         nombre: v.nombre,
                         email: v.email,
-                        rol: 'Vendedor',
+                        rol: v.rol || 'Vendedor',
                         comercio: v.comercio_email || v.comercio || 'Sin comercio',
-                        telefono: v.telefono,
+                        telefono: v.telefono || 'N/A',
                         activo: v.activo
                     });
                 });
@@ -485,8 +490,8 @@
                                 <td class="p-3">${u.telefono}</td>
                                 <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${u.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
                                 <td class="p-3 space-x-2">
-                                    ${u.rol === 'Vendedor' ? `
-                                        <button onclick="abrirModalEditarUsuario('${u.id}', '${u.nombre}', '${u.email}', '${u.telefono}', '${u.comercio}')" class="text-indigo-600 hover:underline font-semibold text-xs">Modificar</button>
+                                    ${u.id !== 'admin-1' && u.id !== 'dueño-1' && u.id !== 'dueño-2' ? `
+                                        <button onclick="abrirModalEditarUsuario('${u.id}', '${u.nombre}', '${u.email}', '${u.telefono}', '${u.comercio}', '${u.rol}')" class="text-indigo-600 hover:underline font-semibold text-xs">Modificar</button>
                                         <button onclick="eliminarUsuarioVendedor('${u.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
                                     ` : `<span class="text-xs text-slate-400">Sistema Fijo</span>`}
                                 </td>
@@ -497,23 +502,42 @@
             `;
         }
 
-        // --- FUNCIONES DEL MODAL CRM PARA USUARIOS ---
+        // --- FUNCIONES DEL MODAL CRM DINÁMICO PARA USUARIOS ---
+        function onCambioRolModal() {
+            const rol = document.getElementById('modal-rol').value;
+            const grupoTel = document.getElementById('grupo-telefono');
+            const inputTel = document.getElementById('modal-telefono');
+            if (rol === 'Vendedor') {
+                grupoTel.style.display = 'block';
+                inputTel.required = true;
+            } else {
+                grupoTel.style.display = 'none';
+                inputTel.required = false;
+                inputTel.value = '';
+            }
+        }
+
         function abrirModalNuevoUsuario() {
             document.getElementById('usuario-edit-id').value = '';
-            document.getElementById('modal-usuario-titulo').innerText = 'Registrar Nuevo Usuario Vendedor';
+            document.getElementById('modal-usuario-titulo').innerText = 'Registrar Nuevo Usuario';
+            document.getElementById('modal-rol').value = 'Vendedor';
+            document.getElementById('modal-comercio').value = '';
             document.getElementById('modal-nombre').value = '';
             document.getElementById('modal-email').value = '';
             document.getElementById('modal-telefono').value = '';
+            onCambioRolModal();
             document.getElementById('modal-usuario-crm').classList.remove('hidden');
         }
 
-        function abrirModalEditarUsuario(id, nombre, email, telefono, comercio) {
+        function abrirModalEditarUsuario(id, nombre, email, telefono, comercio, rol) {
             document.getElementById('usuario-edit-id').value = id;
-            document.getElementById('modal-usuario-titulo').innerText = 'Modificar Usuario Vendedor';
-            document.getElementById('modal-nombre').value = nombre;
-            document.getElementById('modal-email').value = email;
-            document.getElementById('modal-telefono').value = telefono;
-            document.getElementById('modal-comercio').value = comercio;
+            document.getElementById('modal-usuario-titulo').innerText = 'Modificar Usuario';
+            document.getElementById('modal-rol').value = rol || 'Vendedor';
+            document.getElementById('modal-comercio').value = comercio || '';
+            document.getElementById('modal-nombre').value = nombre || '';
+            document.getElementById('modal-email').value = email || '';
+            document.getElementById('modal-telefono').value = telefono || '';
+            onCambioRolModal();
             document.getElementById('modal-usuario-crm').classList.remove('hidden');
         }
 
@@ -524,18 +548,19 @@
         async function guardarUsuarioModal(e) {
             e.preventDefault();
             const id = document.getElementById('usuario-edit-id').value;
-            const comercio = document.getElementById('modal-comercio').value;
+            const rol = document.getElementById('modal-rol').value;
+            const comercio = document.getElementById('modal-comercio').value.trim();
             const nombre = document.getElementById('modal-nombre').value.trim();
             const email = document.getElementById('modal-email').value.trim();
-            const telefono = document.getElementById('modal-telefono').value.trim();
+            const telefono = document.getElementById('modal-telefono').value.trim() || 'N/A';
 
-            // Enviamos tanto comercio_email como comercio para asegurar compatibilidad con la base de datos
             const datosUsuario = {
                 comercio_email: comercio,
                 comercio: comercio,
                 nombre: nombre,
                 email: email,
                 telefono: telefono,
+                rol: rol,
                 activo: true
             };
 
@@ -553,7 +578,7 @@
                 if (error) {
                     alert('Error al registrar usuario: ' + error.message);
                 } else {
-                    alert('¡Nuevo usuario vendedor registrado con éxito!');
+                    alert('¡Nuevo usuario registrado con éxito!');
                     cerrarModalUsuario();
                     cargarGestionUsuariosAdmin();
                 }
@@ -561,7 +586,7 @@
         }
 
         async function eliminarUsuarioVendedor(id) {
-            if (confirm('¿Estás seguro de eliminar este usuario vendedor?')) {
+            if (confirm('¿Estás seguro de eliminar este usuario?')) {
                 const { error } = await supabaseClient.from('vendedores_comercio').delete().eq('id', id);
                 if (error) {
                     alert('Error al eliminar: ' + error.message);
@@ -655,7 +680,7 @@
             const { data } = await supabaseClient.from('vendedores_comercio').select('*');
             container.innerHTML = `
                 [SISTEMA ACTIVO] Conexión establecida con Supabase.<br>
-                - Total de Vendedores registrados: ${data ? data.length : 0}<br>
+                - Total de Usuarios registrados: ${data ? data.length : 0}<br>
                 - Seguridad RLS y Políticas configuradas.<br>
                 - Sincronización de pedidos y T&C operando en tiempo real.
             `;
@@ -897,7 +922,7 @@
             const email = document.getElementById('vendedor-email').value.trim();
             const telefono = document.getElementById('vendedor-tel').value.trim();
 
-            const datos = { comercio_email: usuarioActual.email, comercio: usuarioActual.email, nombre, email, telefono, activo: true };
+            const datos = { comercio_email: usuarioActual.email, comercio: usuarioActual.email, nombre, email, telefono, rol: 'Vendedor', activo: true };
 
             if (id) {
                 await supabaseClient.from('vendedores_comercio').update(datos).eq('id', id);
