@@ -67,7 +67,7 @@
     <div id="modal-usuario-crm" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center z-50">
         <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-2xl w-full max-w-lg relative border border-slate-700">
             <button onclick="cerrarModalUsuario()" class="absolute top-4 right-4 text-slate-400 hover:text-white font-bold text-xl">&times;</button>
-            <h3 id="modal-usuario-titulo" class="text-xl font-bold mb-4 text-indigo-400">Registrar Nuevo Vendedor</h3>
+            <h3 id="modal-usuario-titulo" class="text-xl font-bold mb-4 text-indigo-400">Registrar Nuevo Usuario</h3>
             
             <form id="form-usuario-crm" onsubmit="guardarUsuarioModal(event)" class="space-y-4">
                 <input type="hidden" id="usuario-edit-id">
@@ -196,43 +196,48 @@
         }
 
         async function cargarProductosPublicos() {
-            const { data, error } = await supabaseClient.from('productos_marketplace').select('*');
-            const grid = document.getElementById('productos-grid');
-            if (error || !data || data.length === 0) {
-                grid.innerHTML = `<p class="text-center col-span-3 text-slate-500 bg-white p-8 rounded-xl shadow-sm border border-slate-100">No hay productos disponibles en este momento.</p>`;
-                return;
-            }
-            grid.innerHTML = data.map(p => {
-                const productoLimpio = {
-                    id: p.id,
-                    nombre: p.nombre || p.nombre_producto,
-                    precio: p.precio,
-                    stock: p.stock,
-                    comercio_email: p.comercio_email || p.dueno_email || p.duenio_email,
-                    descripcion: p.descripcion,
-                    imagen_url: p.imagen_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-                };
+            try {
+                const { data, error } = await supabaseClient.from('productos_marketplace').select('*');
+                const grid = document.getElementById('productos-grid');
+                if (!grid) return;
+                if (error || !data || data.length === 0) {
+                    grid.innerHTML = `<p class="text-center col-span-3 text-slate-500 bg-white p-8 rounded-xl shadow-sm border border-slate-100">No hay productos disponibles en este momento.</p>`;
+                    return;
+                }
+                grid.innerHTML = data.map(p => {
+                    const productoLimpio = {
+                        id: p.id,
+                        nombre: p.nombre || p.nombre_producto,
+                        precio: p.precio,
+                        stock: p.stock,
+                        comercio_email: p.comercio_email || p.dueno_email || p.duenio_email,
+                        descripcion: p.descripcion,
+                        imagen_url: p.imagen_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+                    };
 
-                return `
-                    <div class="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
-                        <div>
-                            <div class="h-48 w-full overflow-hidden bg-slate-100 relative">
-                                <img src="${productoLimpio.imagen_url}" alt="${productoLimpio.nombre}" class="w-full h-full object-cover">
-                                <span class="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 bg-white/90 backdrop-blur-sm text-indigo-600 rounded-full shadow-sm">${productoLimpio.comercio_email}</span>
+                    return `
+                        <div class="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                            <div>
+                                <div class="h-48 w-full overflow-hidden bg-slate-100 relative">
+                                    <img src="${productoLimpio.imagen_url}" alt="${productoLimpio.nombre}" class="w-full h-full object-cover">
+                                    <span class="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 bg-white/90 backdrop-blur-sm text-indigo-600 rounded-full shadow-sm">${productoLimpio.comercio_email}</span>
+                                </div>
+                                <div class="p-5">
+                                    <h3 class="font-bold text-lg text-slate-900">${productoLimpio.nombre}</h3>
+                                    <p class="text-slate-600 text-sm mt-1">${productoLimpio.descripcion || 'Sin descripción'}</p>
+                                    <p class="text-indigo-600 font-extrabold text-2xl mt-4">$${productoLimpio.precio}</p>
+                                    <p class="text-xs text-slate-400 mt-1">Stock disponible: ${productoLimpio.stock}</p>
+                                </div>
                             </div>
-                            <div class="p-5">
-                                <h3 class="font-bold text-lg text-slate-900">${productoLimpio.nombre}</h3>
-                                <p class="text-slate-600 text-sm mt-1">${productoLimpio.descripcion || 'Sin descripción'}</p>
-                                <p class="text-indigo-600 font-extrabold text-2xl mt-4">$${productoLimpio.precio}</p>
-                                <p class="text-xs text-slate-400 mt-1">Stock disponible: ${productoLimpio.stock}</p>
+                            <div class="p-5 pt-0">
+                                <button onclick='agregarAlCarrito(${JSON.stringify(productoLimpio)})' class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Agregar al Carrito</button>
                             </div>
                         </div>
-                        <div class="p-5 pt-0">
-                            <button onclick='agregarAlCarrito(${JSON.stringify(productoLimpio)})' class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Agregar al Carrito</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+            }
         }
 
         function agregarAlCarrito(producto) {
@@ -400,25 +405,29 @@
         }
 
         async function cargarComerciosSelectAdmin(selectId) {
-            const select = document.getElementById(selectId);
-            if (!select) return;
+            try {
+                const select = document.getElementById(selectId);
+                if (!select) return;
 
-            let comerciosSet = new Set(['polar', 'negocio.01@gmail.com', 'negocio.02@gmail.com']);
+                let comerciosSet = new Set(['polar', 'negocio.01@gmail.com', 'negocio.02@gmail.com']);
 
-            const { data } = await supabaseClient.from('vendedores_comercio').select('*');
-            if (data) {
-                data.forEach(v => {
-                    const c = v.comercio_email || v.dueno_email || v.duenio_email;
-                    if (c && c !== 'Global' && c !== 'N/A') comerciosSet.add(c);
-                });
-            }
+                const { data } = await supabaseClient.from('vendedores_comercio').select('*');
+                if (data) {
+                    data.forEach(v => {
+                        const c = v.comercio_email || v.dueno_email || v.duenio_email;
+                        if (c && c !== 'Global' && c !== 'N/A') comerciosSet.add(c);
+                    });
+                }
 
-            const opcionesHTML = Array.from(comerciosSet).map(c => `<option value="${c}">${c}</option>`).join('');
-            
-            if (selectId === 'adm-filtro-comercio') {
-                select.innerHTML = `<option value="">Todos los Comercios</option>` + opcionesHTML;
-            } else {
-                select.innerHTML = opcionesHTML;
+                const opcionesHTML = Array.from(comerciosSet).map(c => `<option value="${c}">${c}</option>`).join('');
+                
+                if (selectId === 'adm-filtro-comercio') {
+                    select.innerHTML = `<option value="">Todos los Comercios</option>` + opcionesHTML;
+                } else {
+                    select.innerHTML = opcionesHTML;
+                }
+            } catch (err) {
+                console.error(err);
             }
         }
 
@@ -535,43 +544,47 @@
         }
 
         async function cargarProductosAdminGlobal() {
-            const { data } = await supabaseClient.from('productos_marketplace').select('*');
-            const container = document.getElementById('admin-productos-lista');
-            if (!container) return;
-            if (!data || data.length === 0) {
-                container.innerHTML = `<p class="text-slate-500">No hay productos registrados en el sistema.</p>`;
-                return;
+            try {
+                const { data } = await supabaseClient.from('productos_marketplace').select('*');
+                const container = document.getElementById('admin-productos-lista');
+                if (!container) return;
+                if (!data || data.length === 0) {
+                    container.innerHTML = `<p class="text-slate-500">No hay productos registrados en el sistema.</p>`;
+                    return;
+                }
+                container.innerHTML = `
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200 bg-slate-50">
+                                <th class="p-3">Producto</th>
+                                <th class="p-3">Comercio Asignado</th>
+                                <th class="p-3">Precio</th>
+                                <th class="p-3">Stock</th>
+                                <th class="p-3">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(p => {
+                                const cEmail = p.comercio_email || p.dueno_email || p.duenio_email || 'N/A';
+                                const pNombre = p.nombre || p.nombre_producto;
+                                return `
+                                    <tr class="border-b border-slate-100">
+                                        <td class="p-3 font-bold">${pNombre}</td>
+                                        <td class="p-3 text-indigo-600">${cEmail}</td>
+                                        <td class="p-3">$${p.precio}</td>
+                                        <td class="p-3">${p.stock}</td>
+                                        <td class="p-3">
+                                            <button onclick="eliminarProductoGlobalAdmin('${p.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold hover:bg-rose-700 transition">Eliminar</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                console.error(err);
             }
-            container.innerHTML = `
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50">
-                            <th class="p-3">Producto</th>
-                            <th class="p-3">Comercio Asignado</th>
-                            <th class="p-3">Precio</th>
-                            <th class="p-3">Stock</th>
-                            <th class="p-3">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.map(p => {
-                            const cEmail = p.comercio_email || p.dueno_email || p.duenio_email || 'N/A';
-                            const pNombre = p.nombre || p.nombre_producto;
-                            return `
-                                <tr class="border-b border-slate-100">
-                                    <td class="p-3 font-bold">${pNombre}</td>
-                                    <td class="p-3 text-indigo-600">${cEmail}</td>
-                                    <td class="p-3">$${p.precio}</td>
-                                    <td class="p-3">${p.stock}</td>
-                                    <td class="p-3">
-                                        <button onclick="eliminarProductoGlobalAdmin('${p.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold hover:bg-rose-700 transition">Eliminar</button>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            `;
         }
 
         async function eliminarProductoGlobalAdmin(id) {
@@ -587,61 +600,65 @@
         }
 
         async function cargarGestionUsuariosAdmin() {
-            const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*');
-            const container = document.getElementById('tabla-usuarios-sistema');
-            if (!container) return;
+            try {
+                const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*');
+                const container = document.getElementById('tabla-usuarios-sistema');
+                if (!container) return;
 
-            let listaUsuarios = [
-                { id: 'admin-1', nombre: 'Elio Ravelo (Admin)', email: 'elio.ravelo19@gmail.com', rol: 'Administrador', comercio_email: 'Global', telefono: 'N/A', activo: true },
-                { id: 'dueño-1', nombre: 'Dueño Polar', email: 'antonio.01@gmail.com', rol: 'Dueño de Negocio', comercio_email: 'polar', telefono: 'N/A', activo: true }
-            ];
+                let listaUsuarios = [
+                    { id: 'admin-1', nombre: 'Elio Ravelo (Admin)', email: 'elio.ravelo19@gmail.com', rol: 'Administrador', comercio_email: 'Global', telefono: 'N/A', activo: true },
+                    { id: 'dueño-1', nombre: 'Dueño Polar', email: 'antonio.01@gmail.com', rol: 'Dueño de Negocio', comercio_email: 'polar', telefono: 'N/A', activo: true }
+                ];
 
-            if (vendedores) {
-                vendedores.forEach(v => {
-                    listaUsuarios.push({
-                        ...v,
-                        comercio_email: v.comercio_email || v.dueno_email || v.duenio_email || 'polar'
+                if (vendedores) {
+                    vendedores.forEach(v => {
+                        listaUsuarios.push({
+                            ...v,
+                            comercio_email: v.comercio_email || v.dueno_email || v.duenio_email || 'polar'
+                        });
                     });
-                });
-            }
+                }
 
-            document.getElementById('count-admin').innerText = listaUsuarios.filter(u => u.rol === 'Administrador').length;
-            document.getElementById('count-duenos').innerText = listaUsuarios.filter(u => u.rol === 'Dueño de Negocio').length;
-            document.getElementById('count-vendedores').innerText = listaUsuarios.filter(u => u.rol === 'Vendedor').length;
+                document.getElementById('count-admin').innerText = listaUsuarios.filter(u => u.rol === 'Administrador').length;
+                document.getElementById('count-duenos').innerText = listaUsuarios.filter(u => u.rol === 'Dueño de Negocio').length;
+                document.getElementById('count-vendedores').innerText = listaUsuarios.filter(u => u.rol === 'Vendedor').length;
 
-            container.innerHTML = `
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50">
-                            <th class="p-3">Nombre</th>
-                            <th class="p-3">Correo / Usuario</th>
-                            <th class="p-3">Rol</th>
-                            <th class="p-3">Comercio</th>
-                            <th class="p-3">Teléfono</th>
-                            <th class="p-3">Estatus</th>
-                            <th class="p-3">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${listaUsuarios.map(u => `
-                            <tr class="border-b border-slate-100">
-                                <td class="p-3 font-bold">${u.nombre}</td>
-                                <td class="p-3">${u.email}</td>
-                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${u.rol === 'Administrador' ? 'bg-purple-100 text-purple-800' : u.rol === 'Dueño de Negocio' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'}">${u.rol}</span></td>
-                                <td class="p-3 text-slate-600">${u.comercio_email}</td>
-                                <td class="p-3">${u.telefono || 'N/A'}</td>
-                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${u.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
-                                <td class="p-3 space-x-2">
-                                    ${u.id !== 'admin-1' && u.id !== 'dueño-1' ? `
-                                        <button onclick="abrirModalEditarUsuario('${u.id}', '${u.nombre}', '${u.email}', '${u.telefono || ''}', '${u.comercio_email}', '${u.rol}')" class="text-indigo-600 hover:underline font-semibold text-xs">Modificar</button>
-                                        <button onclick="eliminarUsuarioSistema('${u.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
-                                    ` : `<span class="text-xs text-slate-400">Sistema Fijo</span>`}
-                                </td>
+                container.innerHTML = `
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200 bg-slate-50">
+                                <th class="p-3">Nombre</th>
+                                <th class="p-3">Correo / Usuario</th>
+                                <th class="p-3">Rol</th>
+                                <th class="p-3">Comercio</th>
+                                <th class="p-3">Teléfono</th>
+                                <th class="p-3">Estatus</th>
+                                <th class="p-3">Acciones</th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
+                        </thead>
+                        <tbody>
+                            ${listaUsuarios.map(u => `
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-3 font-bold">${u.nombre}</td>
+                                    <td class="p-3">${u.email}</td>
+                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${u.rol === 'Administrador' ? 'bg-purple-100 text-purple-800' : u.rol === 'Dueño de Negocio' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'}">${u.rol}</span></td>
+                                    <td class="p-3 text-slate-600">${u.comercio_email}</td>
+                                    <td class="p-3">${u.telefono || 'N/A'}</td>
+                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${u.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+                                    <td class="p-3 space-x-2">
+                                        ${u.id !== 'admin-1' && u.id !== 'dueño-1' ? `
+                                            <button onclick="abrirModalEditarUsuario('${u.id}', '${u.nombre}', '${u.email}', '${u.telefono || ''}', '${u.comercio_email}', '${u.rol}')" class="text-indigo-600 hover:underline font-semibold text-xs">Modificar</button>
+                                            <button onclick="eliminarUsuarioSistema('${u.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
+                                        ` : `<span class="text-xs text-slate-400">Sistema Fijo</span>`}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                console.error(err);
+            }
         }
 
         // --- MODAL CRM DINÁMICO ---
@@ -825,7 +842,7 @@
                     alert('Error al eliminar orden: ' + error.message);
                 } else {
                     alert('Orden eliminada con éxito');
-                    cargarEstadisticasDueno();
+                    cargarAuditoriaAdmin();
                 }
             }
         }
@@ -838,10 +855,106 @@
                         await supabaseClient.from('pedidos_marketplace').delete().eq('id', o.id);
                     }
                     alert('Todas las órdenes han sido eliminadas.');
-                    cargarEstadisticasDueno();
+                    cargarAuditoriaAdmin();
                 } else {
                     alert('No hay órdenes para eliminar.');
                 }
+            }
+        }
+
+        async function cargarAuditoriaAdmin() {
+            const container = document.getElementById('adm-tabla-auditoria');
+            if (!container) return;
+
+            try {
+                const busqueda = document.getElementById('adm-search')?.value.toLowerCase() || '';
+                const comercioFiltro = document.getElementById('adm-filtro-comercio')?.value || '';
+                const fechaFiltro = document.getElementById('adm-filtro-fecha')?.value || '';
+
+                let query = supabaseClient.from('pedidos_marketplace').select('*');
+                if (comercioFiltro) query = query.eq('comercio_email', comercioFiltro);
+
+                const { data, error } = await query;
+
+                if (error) {
+                    container.innerHTML = `<p class="text-rose-500 py-4">Error al cargar auditoría: ${error.message}</p>`;
+                    return;
+                }
+
+                if (!data || data.length === 0) {
+                    container.innerHTML = `<p class="text-slate-500">No hay órdenes registradas.</p>`;
+                    return;
+                }
+
+                let filtrados = data.filter(o => {
+                    let numOrden = o.numero_orden || '';
+                    let matchBusqueda = !busqueda || numOrden.toLowerCase().includes(busqueda) || (o.cliente_telefono && o.cliente_telefono.toLowerCase().includes(busqueda)) || (o.cliente_nombre && o.cliente_nombre.toLowerCase().includes(busqueda));
+                    let fechaStr = o.created_at || '';
+                    let matchFecha = !fechaFiltro || (fechaStr && fechaStr.startsWith(fechaFiltro));
+                    return matchBusqueda && matchFecha;
+                });
+
+                if (filtrados.length === 0) {
+                    container.innerHTML = `<p class="text-slate-500">No hay órdenes que coincidan con los filtros.</p>`;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200 bg-slate-50">
+                                <th class="p-3">N° Orden</th>
+                                <th class="p-3">Comercio</th>
+                                <th class="p-3">Cliente</th>
+                                <th class="p-3">Teléfono</th>
+                                <th class="p-3">Vendedor</th>
+                                <th class="p-3">Total</th>
+                                <th class="p-3">Estatus</th>
+                                <th class="p-3">Acciones T&C</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filtrados.map(o => {
+                                const numOrden = o.numero_orden || 'ORD-' + o.id.substring(0, 6);
+                                const estatusOrden = o.estatus || 'Pendiente';
+                                const vendedorOrden = o.vendedor_email || 'Sin asignar';
+                                return `
+                                    <tr class="border-b border-slate-100">
+                                        <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${numOrden}</button></td>
+                                        <td class="p-3">${o.comercio_email || o.dueno_email || 'polar'}</td>
+                                        <td class="p-3">${o.cliente_nombre || 'N/A'}</td>
+                                        <td class="p-3">${o.cliente_telefono || 'N/A'}</td>
+                                        <td class="p-3">${vendedorOrden}</td>
+                                        <td class="p-3 font-semibold">$${o.total || 0}</td>
+                                        <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${estatusOrden === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : estatusOrden === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${estatusOrden}</span></td>
+                                        <td class="p-3 space-x-2">
+                                            <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">PDF T&C</button>
+                                            <button onclick="eliminarOrdenSupabase('${o.id}')" class="bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Eliminar</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<p class="text-rose-500 py-4">Error al conectar con la base de datos.</p>`;
+            }
+        }
+
+        async function cargarLogAuditoriaAdmin() {
+            const container = document.getElementById('admin-log-container');
+            if (!container) return;
+            try {
+                const { data } = await supabaseClient.from('vendedores_comercio').select('*');
+                container.innerHTML = `
+                    [SISTEMA ACTIVO] Conexión establecida con Supabase.<br>
+                    - Esquema Unificado Operativo.<br>
+                    - Total de Usuarios registrados: ${data ? data.length : 0}
+                `;
+            } catch (err) {
+                container.innerHTML = `[SISTEMA] Error al cargar logs de auditoría.`;
             }
         }
 
@@ -866,7 +979,7 @@
                     <div class="flex-1" id="dueno-content-area"></div>
                 </div>
             `;
-            cambiarTabDueno(esVendedor ? 'estadisticas' : 'estadisticas');
+            cambiarTabDueno('estadisticas');
         }
 
         function cambiarTabDueno(tab) {
@@ -964,49 +1077,53 @@
         }
 
         async function cargarVendedoresPanelDueno() {
-            const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
-            const { data } = await supabaseClient.from('vendedores_comercio').select('*');
-            const container = document.getElementById('lista-vendedores-dueno-container');
-            if (!container) return;
+            try {
+                const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
+                const { data } = await supabaseClient.from('vendedores_comercio').select('*');
+                const container = document.getElementById('lista-vendedores-dueno-container');
+                if (!container) return;
 
-            const misVendedores = data ? data.filter(v => {
-                const c = (v.comercio_email || v.dueno_email || v.duenio_email || '').toLowerCase().trim();
-                return (c === comercioId || c.includes(comercioId)) && v.rol === 'Vendedor';
-            }) : [];
+                const misVendedores = data ? data.filter(v => {
+                    const c = (v.comercio_email || v.dueno_email || v.duenio_email || '').toLowerCase().trim();
+                    return (c === comercioId || c.includes(comercioId)) && v.rol === 'Vendedor';
+                }) : [];
 
-            if (misVendedores.length === 0) {
-                container.innerHTML = `<p class="text-slate-500 py-4">No tienes vendedores registrados todavía. Haz clic en "+ Nuevo Vendedor" para agregar uno.</p>`;
-                return;
-            }
+                if (misVendedores.length === 0) {
+                    container.innerHTML = `<p class="text-slate-500 py-4">No tienes vendedores registrados todavía. Haz clic en "+ Nuevo Vendedor" para agregar uno.</p>`;
+                    return;
+                }
 
-            container.innerHTML = `
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50">
-                            <th class="p-3">Nombre</th>
-                            <th class="p-3">Correo Electrónico</th>
-                            <th class="p-3">Teléfono / WhatsApp</th>
-                            <th class="p-3">Estatus</th>
-                            <th class="p-3">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${misVendedores.map(v => `
-                            <tr class="border-b border-slate-100">
-                                <td class="p-3 font-bold">${v.nombre}</td>
-                                <td class="p-3">${v.email}</td>
-                                <td class="p-3">${v.telefono || 'N/A'}</td>
-                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${v.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${v.activo ? 'Activo' : 'Inactivo'}</span></td>
-                                <td class="p-3 space-x-2">
-                                    <button onclick="toggleEstadoVendedorDueno('${v.id}', ${!v.activo})" class="text-indigo-600 hover:underline font-semibold text-xs">${v.activo ? 'Inactivar' : 'Activar'}</button>
-                                    <button onclick="abrirModalEditarUsuario('${v.id}', '${v.nombre}', '${v.email}', '${v.telefono || ''}', '${v.comercio_email || v.dueno_email || 'polar'}', 'Vendedor')" class="text-amber-600 hover:underline font-semibold text-xs">Modificar</button>
-                                    <button onclick="eliminarUsuarioSistema('${v.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
-                                </td>
+                container.innerHTML = `
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200 bg-slate-50">
+                                <th class="p-3">Nombre</th>
+                                <th class="p-3">Correo Electrónico</th>
+                                <th class="p-3">Teléfono / WhatsApp</th>
+                                <th class="p-3">Estatus</th>
+                                <th class="p-3">Acciones</th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
+                        </thead>
+                        <tbody>
+                            ${misVendedores.map(v => `
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-3 font-bold">${v.nombre}</td>
+                                    <td class="p-3">${v.email}</td>
+                                    <td class="p-3">${v.telefono || 'N/A'}</td>
+                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${v.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${v.activo ? 'Activo' : 'Inactivo'}</span></td>
+                                    <td class="p-3 space-x-2">
+                                        <button onclick="toggleEstadoVendedorDueno('${v.id}', ${!v.activo})" class="text-indigo-600 hover:underline font-semibold text-xs">${v.activo ? 'Inactivar' : 'Activar'}</button>
+                                        <button onclick="abrirModalEditarUsuario('${v.id}', '${v.nombre}', '${v.email}', '${v.telefono || ''}', '${v.comercio_email || v.dueno_email || 'polar'}', 'Vendedor')" class="text-amber-600 hover:underline font-semibold text-xs">Modificar</button>
+                                        <button onclick="eliminarUsuarioSistema('${v.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                console.error(err);
+            }
         }
 
         async function toggleEstadoVendedorDueno(id, nuevoEstado) {
@@ -1019,23 +1136,27 @@
         }
 
         async function cargarCatalogoDueno() {
-            const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
-            const { data } = await supabaseClient.from('productos_marketplace').select('*');
-            const container = document.getElementById('catalogo-stock-container');
-            if (!container) return;
-            
-            if (!data || data.length === 0) {
-                container.innerHTML = `<p class="text-slate-500">No hay productos en tu inventario.</p>`;
-                cacheCatalogoDueno = [];
-                return;
+            try {
+                const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
+                const { data } = await supabaseClient.from('productos_marketplace').select('*');
+                const container = document.getElementById('catalogo-stock-container');
+                if (!container) return;
+                
+                if (!data || data.length === 0) {
+                    container.innerHTML = `<p class="text-slate-500">No hay productos en tu inventario.</p>`;
+                    cacheCatalogoDueno = [];
+                    return;
+                }
+
+                cacheCatalogoDueno = data.filter(p => {
+                    const cEmail = (p.comercio_email || p.dueno_email || p.duenio_email || '').toLowerCase().trim();
+                    return cEmail === comercioId || cEmail.includes(comercioId);
+                });
+
+                renderizarListaCatalogoDueno(cacheCatalogoDueno);
+            } catch (err) {
+                console.error(err);
             }
-
-            cacheCatalogoDueno = data.filter(p => {
-                const cEmail = (p.comercio_email || p.dueno_email || p.duenio_email || '').toLowerCase().trim();
-                return cEmail === comercioId || cEmail.includes(comercioId);
-            });
-
-            renderizarListaCatalogoDueno(cacheCatalogoDueno);
         }
 
         function filtrarCatalogoDueno() {
@@ -1126,148 +1247,152 @@
             const container = document.getElementById('lista-ordenes-estadisticas');
             if (!container) return;
 
-            const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
-            const esVendedor = datosSesionRol.rol === 'Vendedor';
-            const emailVendedor = (datosSesionRol.email || '').toLowerCase().trim();
+            try {
+                const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
+                const esVendedor = datosSesionRol.rol === 'Vendedor';
+                const emailVendedor = (datosSesionRol.email || '').toLowerCase().trim();
 
-            const { data: todosLosPedidos, error } = await supabaseClient.from('pedidos_marketplace').select('*');
-            
-            if (error) {
-                container.innerHTML = `<p class="text-rose-500 py-4">Error al cargar órdenes: ${error.message}</p>`;
-                return;
-            }
-
-            if (!todosLosPedidos || todosLosPedidos.length === 0) {
-                container.innerHTML = `<p class="text-slate-500 py-4">No hay órdenes registradas.</p>`;
-                if (document.getElementById('stat-totales')) document.getElementById('stat-totales').innerText = '0';
-                if (document.getElementById('stat-ingresos')) document.getElementById('stat-ingresos').innerText = '$0.00';
-                if (document.getElementById('stat-abiertas')) document.getElementById('stat-abiertas').innerText = '0';
-                if (document.getElementById('stat-cerradas')) document.getElementById('stat-cerradas').innerText = '0';
-                return;
-            }
-
-            let pedidos = todosLosPedidos.filter(p => {
-                const cEmail = (p.comercio_email || p.dueno_email || p.duenio_email || '').toLowerCase().trim();
-                return cEmail === comercioId || cEmail.includes(comercioId) || comercioId.includes(cEmail);
-            });
-
-            if (esVendedor) {
-                pedidos = pedidos.filter(p => {
-                    const vEmail = (p.vendedor_email || '').toLowerCase().trim();
-                    return vEmail === emailVendedor;
-                });
-            }
-
-            let ventasTotalesCerradas = pedidos.filter(p => p.estatus === 'Concretado').length;
-            let ingresosTotales = pedidos.filter(p => p.estatus === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
-            let ventasAbiertas = pedidos.filter(p => p.estatus === 'Pendiente' || !p.estatus).length;
-            let ventasCerradas = pedidos.filter(p => p.estatus === 'Concretado' || p.estatus === 'No Concretado').length;
-
-            if (document.getElementById('stat-totales')) document.getElementById('stat-totales').innerText = ventasTotalesCerradas;
-            if (document.getElementById('stat-ingresos')) document.getElementById('stat-ingresos').innerText = `$${ingresosTotales.toFixed(2)}`;
-            if (document.getElementById('stat-abiertas')) document.getElementById('stat-abiertas').innerText = ventasAbiertas;
-            if (document.getElementById('stat-cerradas')) document.getElementById('stat-cerradas').innerText = ventasCerradas;
-
-            if (!esVendedor) {
-                const ordenesSinAsignar = pedidos.filter(p => (!p.vendedor_email || p.vendedor_email === 'Sin asignar' || p.vendedor_email === 'undefined') && (p.estatus === 'Pendiente' || !p.estatus));
-                const alertaBox = document.getElementById('alerta-ordenes-pendientes');
-                const tablaPendientes = document.getElementById('tabla-ordenes-pendientes-asignar');
+                const { data: todosLosPedidos, error } = await supabaseClient.from('pedidos_marketplace').select('*');
                 
-                if (ordenesSinAsignar.length > 0 && alertaBox && tablaPendientes) {
-                    alertaBox.classList.remove('hidden');
-                    tablaPendientes.innerHTML = `
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead>
-                                <tr class="border-b border-amber-200 bg-amber-100/50">
-                                    <th class="p-2">N° Orden</th>
-                                    <th class="p-2">Cliente</th>
-                                    <th class="p-2">Teléfono</th>
-                                    <th class="p-2">Total</th>
-                                    <th class="p-2">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${ordenesSinAsignar.map(o => `
-                                    <tr class="border-b border-amber-200">
-                                        <td class="p-2 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
-                                        <td class="p-2">${o.cliente_nombre}</td>
-                                        <td class="p-2">${o.cliente_telefono}</td>
-                                        <td class="p-2 font-semibold">$${o.total}</td>
-                                        <td class="p-2"><button onclick="asignarVendedorOrdenModal('${o.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-semibold">Asignar Vendedor</button></td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                } else if (alertaBox) {
-                    alertaBox.classList.add('hidden');
+                if (error) {
+                    container.innerHTML = `<p class="text-rose-500 py-4">Error al cargar órdenes: ${error.message}</p>`;
+                    return;
                 }
+
+                if (!todosLosPedidos || todosLosPedidos.length === 0) {
+                    container.innerHTML = `<p class="text-slate-500 py-4">No hay órdenes registradas.</p>`;
+                    if (document.getElementById('stat-totales')) document.getElementById('stat-totales').innerText = '0';
+                    if (document.getElementById('stat-ingresos')) document.getElementById('stat-ingresos').innerText = '$0.00';
+                    if (document.getElementById('stat-abiertas')) document.getElementById('stat-abiertas').innerText = '0';
+                    if (document.getElementById('stat-cerradas')) document.getElementById('stat-cerradas').innerText = '0';
+                    return;
+                }
+
+                let pedidos = todosLosPedidos.filter(p => {
+                    const cEmail = (p.comercio_email || p.dueno_email || p.duenio_email || '').toLowerCase().trim();
+                    return cEmail === comercioId || cEmail.includes(comercioId) || comercioId.includes(cEmail);
+                });
+
+                if (esVendedor) {
+                    pedidos = pedidos.filter(p => {
+                        const vEmail = (p.vendedor_email || '').toLowerCase().trim();
+                        return vEmail === emailVendedor;
+                    });
+                }
+
+                let ventasTotalesCerradas = pedidos.filter(p => p.estatus === 'Concretado').length;
+                let ingresosTotales = pedidos.filter(p => p.estatus === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
+                let ventasAbiertas = pedidos.filter(p => p.estatus === 'Pendiente' || !p.estatus).length;
+                let ventasCerradas = pedidos.filter(p => p.estatus === 'Concretado' || p.estatus === 'No Concretado').length;
+
+                if (document.getElementById('stat-totales')) document.getElementById('stat-totales').innerText = ventasTotalesCerradas;
+                if (document.getElementById('stat-ingresos')) document.getElementById('stat-ingresos').innerText = `$${ingresosTotales.toFixed(2)}`;
+                if (document.getElementById('stat-abiertas')) document.getElementById('stat-abiertas').innerText = ventasAbiertas;
+                if (document.getElementById('stat-cerradas')) document.getElementById('stat-cerradas').innerText = ventasCerradas;
+
+                if (!esVendedor) {
+                    const ordenesSinAsignar = pedidos.filter(p => (!p.vendedor_email || p.vendedor_email === 'Sin asignar' || p.vendedor_email === 'undefined') && (p.estatus === 'Pendiente' || !p.estatus));
+                    const alertaBox = document.getElementById('alerta-ordenes-pendientes');
+                    const tablaPendientes = document.getElementById('tabla-ordenes-pendientes-asignar');
+                    
+                    if (ordenesSinAsignar.length > 0 && alertaBox && tablaPendientes) {
+                        alertaBox.classList.remove('hidden');
+                        tablaPendientes.innerHTML = `
+                            <table class="w-full text-left border-collapse text-xs">
+                               <thead>
+                                    <tr class="border-b border-amber-200 bg-amber-100/50">
+                                        <th class="p-2">N° Orden</th>
+                                        <th class="p-2">Cliente</th>
+                                        <th class="p-2">Teléfono</th>
+                                        <th class="p-2">Total</th>
+                                        <th class="p-2">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ordenesSinAsignar.map(o => `
+                                        <tr class="border-b border-amber-200">
+                                            <td class="p-2 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
+                                            <td class="p-2">${o.cliente_nombre}</td>
+                                            <td class="p-2">${o.cliente_telefono}</td>
+                                            <td class="p-2 font-semibold">$${o.total}</td>
+                                            <td class="p-2"><button onclick="asignarVendedorOrdenModal('${o.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-semibold">Asignar Vendedor</button></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    } else if (alertaBox) {
+                        alertaBox.classList.add('hidden');
+                    }
+                }
+
+                const busqueda = document.getElementById('dueno-search')?.value.toLowerCase() || '';
+                const fechaFiltro = document.getElementById('dueno-fecha')?.value || '';
+
+                let filtradas = pedidos.filter(o => {
+                    let est = o.estatus || 'Pendiente';
+                    let matchFiltro = true;
+                    if (filtroVentasActual === 'Pendiente') matchFiltro = (est === 'Pendiente');
+                    if (filtroVentasActual === 'Cerradas') matchFiltro = (est === 'Concretado' || est === 'No Concretado');
+
+                    let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
+                    let matchFecha = !fechaFiltro || (o.created_at && o.created_at.startsWith(fechaFiltro));
+                    return matchFiltro && matchBusqueda && matchFecha;
+                });
+
+                if (filtradas.length === 0) {
+                    container.innerHTML = `<p class="text-slate-500 py-4">No hay órdenes que coincidan con el filtro.</p>`;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200 bg-slate-50">
+                                <th class="p-3">N° Orden</th>
+                                <th class="p-3">Fecha y Hora</th>
+                                <th class="p-3">Cliente / Teléfono</th>
+                                <th class="p-3">Vendedor</th>
+                                <th class="p-3">Total</th>
+                                <th class="p-3">Estatus</th>
+                                <th class="p-3">Acciones / T&C</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filtradas.map(o => {
+                                const est = o.estatus || 'Pendiente';
+                                const fechaCreacion = o.created_at ? new Date(o.created_at).toLocaleString() : 'Reciente';
+                                
+                                const esOrdenCerrada = (est === 'Concretado' || est === 'No Concretado');
+                                const puedeModificarEstatus = !esVendedor || !esOrdenCerrada;
+                                const puedeEliminar = !esVendedor;
+
+                                return `
+                                    <tr class="border-b border-slate-100">
+                                        <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
+                                        <td class="p-3 text-xs text-slate-500">${fechaCreacion}</td>
+                                        <td class="p-3">${o.cliente_nombre}<br><span class="text-xs text-slate-500">${o.cliente_telefono}</span></td>
+                                        <td class="p-3 text-indigo-600 font-medium">${o.vendedor_email || 'Sin asignar'}</td>
+                                        <td class="p-3 font-semibold">$${o.total}</td>
+                                        <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${est === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : est === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${est}</span></td>
+                                        <td class="p-3 space-x-1">
+                                            ${puedeModificarEstatus ? `
+                                                <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
+                                                <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
+                                            ` : `<span class="text-xs text-slate-400 italic">Bloqueada (Solo Dueño)</span>`}
+                                            <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
+                                            ${puedeEliminar ? `<button onclick="eliminarOrdenSupabase('${o.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Eliminar</button>` : ''}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<p class="text-rose-500 py-4">Error al cargar las estadísticas y órdenes.</p>`;
             }
-
-            const busqueda = document.getElementById('dueno-search')?.value.toLowerCase() || '';
-            const fechaFiltro = document.getElementById('dueno-fecha')?.value || '';
-
-            let filtradas = pedidos.filter(o => {
-                let est = o.estatus || 'Pendiente';
-                let matchFiltro = true;
-                if (filtroVentasActual === 'Pendiente') matchFiltro = (est === 'Pendiente');
-                if (filtroVentasActual === 'Cerradas') matchFiltro = (est === 'Concretado' || est === 'No Concretado');
-
-                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
-                let matchFecha = !fechaFiltro || (o.created_at && o.created_at.startsWith(fechaFiltro));
-                return matchFiltro && matchBusqueda && matchFecha;
-            });
-
-            if (filtradas.length === 0) {
-                container.innerHTML = `<p class="text-slate-500 py-4">No hay órdenes que coincidan con el filtro.</p>`;
-                return;
-            }
-
-            container.innerHTML = `
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50">
-                            <th class="p-3">N° Orden</th>
-                            <th class="p-3">Fecha y Hora</th>
-                            <th class="p-3">Cliente / Teléfono</th>
-                            <th class="p-3">Vendedor</th>
-                            <th class="p-3">Total</th>
-                            <th class="p-3">Estatus</th>
-                            <th class="p-3">Acciones / T&C</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${filtradas.map(o => {
-                            const est = o.estatus || 'Pendiente';
-                            const fechaCreacion = o.created_at ? new Date(o.created_at).toLocaleString() : 'Reciente';
-                            
-                            // Lógica de permisos de estatus y eliminación para Vendedor vs Dueño/Admin
-                            const esOrdenCerrada = (est === 'Concretado' || est === 'No Concretado');
-                            const puedeModificarEstatus = !esVendedor || !esOrdenCerrada;
-                            const puedeEliminar = !esVendedor;
-
-                            return `
-                                <tr class="border-b border-slate-100">
-                                    <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
-                                    <td class="p-3 text-xs text-slate-500">${fechaCreacion}</td>
-                                    <td class="p-3">${o.cliente_nombre}<br><span class="text-xs text-slate-500">${o.cliente_telefono}</span></td>
-                                    <td class="p-3 text-indigo-600 font-medium">${o.vendedor_email || 'Sin asignar'}</td>
-                                    <td class="p-3 font-semibold">$${o.total}</td>
-                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${est === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : est === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${est}</span></td>
-                                    <td class="p-3 space-x-1">
-                                        ${puedeModificarEstatus ? `
-                                            <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
-                                            <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
-                                        ` : `<span class="text-xs text-slate-400 italic">Bloqueada (Solo Dueño)</span>`}
-                                        <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
-                                        ${puedeEliminar ? `<button onclick="eliminarOrdenSupabase('${o.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Eliminar</button>` : ''}
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            `;
         }
 
         function verDetalleOrdenModal(orden) {
@@ -1348,7 +1473,6 @@
         }
 
         async function cambiarEstatusOrden(idOrden, nuevoEstatus) {
-            // Verificar si el usuario actual es vendedor y la orden ya estaba cerrada
             const esVendedor = datosSesionRol.rol === 'Vendedor';
             if (esVendedor) {
                 const { data: ordenActual } = await supabaseClient.from('pedidos_marketplace').select('estatus').eq('id', idOrden).maybeSingle();
@@ -1363,7 +1487,11 @@
                 alert('Error al actualizar estatus: ' + error.message);
             } else {
                 alert(`Orden marcada como ${nuevoEstatus}`);
-                cargarEstadisticasDueno();
+                if (datosSesionRol.rol === 'Administrador' || usuarioActual.email === 'elio.ravelo19@gmail.com') {
+                    cargarAuditoriaAdmin();
+                } else {
+                    cargarEstadisticasDueno();
+                }
             }
         }
 
