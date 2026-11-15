@@ -715,12 +715,13 @@
                 reader.onload = async function(uploadEvent) {
                     const imagenBase64 = uploadEvent.target.result;
                     const { error } = await supabaseClient.from('productos_marketplace').insert([{ 
-                        comercio_email, 
-                        nombre, 
-                        precio, 
-                        stock, 
+                        comercio_email: comercio_email,
+                        dueno_email: comercio_email, // Incluido para cumplir con la restricción NOT NULL
+                        nombre: nombre, 
+                        precio: precio, 
+                        stock: stock, 
                         imagen: imagenBase64, 
-                        descripcion 
+                        descripcion: descripcion 
                     }]);
                     if (error) {
                         alert('Error al guardar: ' + error.message);
