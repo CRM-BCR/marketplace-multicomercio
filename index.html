@@ -346,6 +346,30 @@
             cambiarTabAdmin('panel');
         }
 
+        async function cargarComerciosSelectAdmin(selectId) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+
+            // Valores por defecto fijos + Dueños iniciales
+            let comerciosSet = new Set(['negocio.01@gmail.com', 'negocio.02@gmail.com']);
+
+            const { data } = await supabaseClient.from('vendedores_comercio').select('*');
+            if (data) {
+                data.forEach(v => {
+                    const c = v.comercio || v.dueno_email || v.comercio_email;
+                    if (c && c !== 'Global' && c !== 'N/A') comerciosSet.add(c);
+                });
+            }
+
+            const opcionesHTML = Array.from(comerciosSet).map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            if (selectId === 'adm-filtro-comercio') {
+                select.innerHTML = `<option value="">Todos los Comercios</option>` + opcionesHTML;
+            } else {
+                select.innerHTML = opcionesHTML;
+            }
+        }
+
         function cambiarTabAdmin(tab) {
             ['panel', 'auditorias', 'usuarios'].forEach(t => {
                 const btn = document.getElementById(`btn-admin-${t}`);
@@ -365,8 +389,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-slate-700">Comercio Destino</label>
                                 <select id="adm-comercio" required class="w-full mt-1 border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                                    <option value="negocio.01@gmail.com">negocio.01@gmail.com</option>
-                                    <option value="negocio.02@gmail.com">negocio.02@gmail.com</option>
+                                    <option value="">Cargando comercios...</option>
                                 </select>
                             </div>
                             <input type="text" id="adm-nombre" placeholder="Nombre del Producto" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
@@ -377,6 +400,7 @@
                         </form>
                     </div>
                 `;
+                cargarComerciosSelectAdmin('adm-comercio');
             } else if (tab === 'auditorias') {
                 area.innerHTML = `
                     <div class="space-y-6">
@@ -392,8 +416,6 @@
                                 <input type="text" id="adm-search" placeholder="Buscar por orden, teléfono o cliente..." class="border border-slate-300 p-2.5 rounded-xl text-sm" oninput="cargarAuditoriaAdmin()">
                                 <select id="adm-filtro-comercio" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarAuditoriaAdmin()">
                                     <option value="">Todos los Comercios</option>
-                                    <option value="negocio.01@gmail.com">negocio.01@gmail.com</option>
-                                    <option value="negocio.02@gmail.com">negocio.02@gmail.com</option>
                                 </select>
                                 <input type="date" id="adm-filtro-fecha" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarAuditoriaAdmin()">
                             </div>
@@ -401,6 +423,7 @@
                         </div>
                     </div>
                 `;
+                cargarComerciosSelectAdmin('adm-filtro-comercio');
                 cargarAuditoriaAdmin();
                 cargarLogAuditoriaAdmin();
             } else if (tab === 'usuarios') {
