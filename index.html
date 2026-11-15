@@ -329,8 +329,7 @@
                 productos: carrito,
                 total: totalPedido,
                 estatus: 'Pendiente',
-                terminos_aceptados: true,
-                fecha_creacion: new Date().toISOString()
+                terminos_aceptados: true
             };
 
             await supabaseClient.from('pedidos_marketplace').insert([datosPedido]);
@@ -827,12 +826,17 @@
             const comercioFiltro = document.getElementById('adm-filtro-comercio')?.value || '';
             const fechaFiltro = document.getElementById('adm-filtro-fecha')?.value || '';
 
-            let query = supabaseClient.from('pedidos_marketplace').select('*').order('fecha_creacion', { ascending: false });
+            let query = supabaseClient.from('pedidos_marketplace').select('*');
             if (comercioFiltro) query = query.eq('comercio_email', comercioFiltro);
 
-            const { data } = await query;
+            const { data, error } = await query;
             const container = document.getElementById('adm-tabla-auditoria');
             if (!container) return;
+
+            if (error) {
+                container.innerHTML = `<p class="text-rose-500 py-4">Error al cargar auditoría: ${error.message}</p>`;
+                return;
+            }
 
             if (!data || data.length === 0) {
                 container.innerHTML = `<p class="text-slate-500">No hay órdenes registradas.</p>`;
@@ -841,7 +845,7 @@
 
             let filtrados = data.filter(o => {
                 let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
-                let matchFecha = !fechaFiltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
+                let matchFecha = !fechaFiltro || (o.created_at && o.created_at.startsWith(fechaFiltro)) || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
                 return matchBusqueda && matchFecha;
             });
 
@@ -1164,13 +1168,13 @@
             cargarEstadisticasDueno();
         }
 
-        // --- ESTADÍSTICAS Y ÓRDENES DEL DUEÑO (ROBUSTO Y CON MANEJO DE ERRORES) ---
+        // --- ESTADÍSTICAS Y ÓRDENES DEL DUEÑO (ROBUSTO SIN COLUMNAS INEXISTENTES) ---
         async function cargarEstadisticasDueno() {
             const container = document.getElementById('lista-ordenes-estadisticas');
             if (!container) return;
 
             const comercioId = (datosSesionRol.comercio || datosSesionRol.email || 'polar').toLowerCase().trim();
-            const { data: todosLosPedidos, error } = await supabaseClient.from('pedidos_marketplace').select('*').order('fecha_creacion', { ascending: false });
+            const { data: todosLosPedidos, error } = await supabaseClient.from('pedidos_marketplace').select('*');
             
             if (error) {
                 container.innerHTML = `<p class="text-rose-500 py-4">Error al cargar órdenes desde Supabase: ${error.message}</p>`;
@@ -1252,7 +1256,8 @@
                 if (filtroVentasActual === 'Cerradas') matchFiltro = (o.estatus === 'Concretado' || o.estatus === 'No Concretado');
 
                 let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
-                let matchFecha = !fechaFiltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
+                let fechaStr = o.created_at || o.fecha_creacion || '';
+                let matchFecha = !fechaFiltro || (fechaStr && fechaStr.startsWith(fechaFiltro));
                 return matchFiltro && matchBusqueda && matchFecha;
             });
 
@@ -1275,21 +1280,24 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${filtradas.map(o => `
-                            <tr class="border-b border-slate-100">
-                                <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
-                                <td class="p-3 text-xs text-slate-500">${new Date(o.fecha_creacion).toLocaleString()}</td>
-                                <td class="p-3">${o.cliente_nombre}<br><span class="text-xs text-slate-500">${o.cliente_telefono}</span></td>
-                                <td class="p-3 text-indigo-600 font-medium">${o.vendedor_email}</td>
-                                <td class="p-3 font-semibold">$${o.total}</td>
-                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : o.estatus === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${o.estatus}</span></td>
-                                <td class="p-3 space-x-1">
-                                    <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
-                                    <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
-                                    <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
-                                </td>
-                            </tr>
-                        `).join('')}
+                        ${filtradas.map(o => {
+                            const fechaOrden = o.created_at ? new Date(o.created_at).toLocaleString() : (o.fecha_creacion ? new Date(o.fecha_creacion).toLocaleString() : 'Reciente');
+                            return `
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
+                                    <td class="p-3 text-xs text-slate-500">${fechaOrden}</td>
+                                    <td class="p-3">${o.cliente_nombre}<br><span class="text-xs text-slate-500">${o.cliente_telefono}</span></td>
+                                    <td class="p-3 text-indigo-600 font-medium">${o.vendedor_email}</td>
+                                    <td class="p-3 font-semibold">$${o.total}</td>
+                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : o.estatus === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${o.estatus}</span></td>
+                                    <td class="p-3 space-x-1">
+                                        <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
+                                        <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
+                                        <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -1301,6 +1309,7 @@
             const contenido = document.getElementById('modal-orden-contenido');
 
             titulo.innerText = `Detalles de la Orden: ${orden.numero_orden}`;
+            const fechaOrden = orden.created_at ? new Date(orden.created_at).toLocaleString() : (orden.fecha_creacion ? new Date(orden.fecha_creacion).toLocaleString() : 'Reciente');
             
             let productosHtml = '';
             if (orden.productos && Array.isArray(orden.productos)) {
@@ -1321,7 +1330,7 @@
                 <div class="space-y-3">
                     <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-xs space-y-1">
                         <p><strong>Estatus Actual:</strong> <span class="font-bold uppercase">${orden.estatus}</span></p>
-                        <p><strong>Fecha y Hora:</strong> ${new Date(orden.fecha_creacion).toLocaleString()}</p>
+                        <p><strong>Fecha y Hora:</strong> ${fechaOrden}</p>
                         <p><strong>Comercio Afiliado:</strong> ${orden.comercio_email}</p>
                         <p><strong>Vendedor Asignado:</strong> ${orden.vendedor_email}</p>
                     </div>
@@ -1382,6 +1391,7 @@
         function descargarPDFOrden(orden) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
+            const fechaOrden = orden.created_at ? new Date(orden.created_at).toLocaleString() : (orden.fecha_creacion ? new Date(orden.fecha_creacion).toLocaleString() : 'Reciente');
 
             doc.setFont("helvetica", "bold");
             doc.setFontSize(16);
@@ -1390,7 +1400,7 @@
             doc.setFontSize(10);
             doc.setFont("helvetica", "normal");
             doc.text(`Número de Orden: ${orden.numero_orden}`, 14, 30);
-            doc.text(`Fecha y Hora: ${new Date(orden.fecha_creacion).toLocaleString()}`, 14, 36);
+            doc.text(`Fecha y Hora: ${fechaOrden}`, 14, 36);
             doc.text(`Comercio Afiliado: ${orden.comercio_email}`, 14, 42);
             doc.text(`Vendedor Asignado: ${orden.vendedor_email}`, 14, 48);
 
