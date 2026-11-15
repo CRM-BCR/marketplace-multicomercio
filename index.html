@@ -205,7 +205,7 @@
             grid.innerHTML = data.map(p => {
                 const nombreProd = p.nombre || p.nombre_producto || p.titulo || 'Producto sin nombre';
                 const descProd = p.descripcion || p.detalle || 'Sin descripción disponible';
-                const comercioProd = p.comercio_email || p.dueno_email || p.duenio_email || 'polar';
+                const comercioProd = p.comercio_email || 'polar';
                 const precioProd = p.precio || p.costo || 0;
                 const stockProd = p.stock !== undefined ? p.stock : (p.cantidad_stock || 0);
                 const imagenProd = p.imagen || p.imagen_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3';
@@ -318,12 +318,10 @@
             const totalPedido = carrito.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
             const vendedorEmailStr = vendedorAsignado ? vendedorAsignado.email : 'Sin asignar';
 
+            // Objeto limpio con las columnas exactas que existen en Supabase
             const datosPedido = {
                 numero_orden: numeroOrden,
                 comercio_email: comercioEmail,
-                dueno_email: comercioEmail,
-                duenio_email: comercioEmail,
-                comercio: comercioEmail,
                 cliente_nombre: nombre,
                 cliente_telefono: telefono,
                 vendedor_email: vendedorEmailStr,
@@ -408,7 +406,7 @@
             const { data } = await supabaseClient.from('vendedores_comercio').select('*');
             if (data) {
                 data.forEach(v => {
-                    const c = v.comercio || v.dueno_email || v.duenio_email || v.comercio_email;
+                    const c = v.comercio || v.comercio_email;
                     if (c && c !== 'Global' && c !== 'N/A') comerciosSet.add(c);
                 });
             }
@@ -556,7 +554,7 @@
                     <tbody>
                         ${data.map(p => {
                             const nombreProd = p.nombre || p.nombre_producto || p.titulo || 'Sin nombre';
-                            const comercioProd = p.comercio_email || p.dueno_email || p.duenio_email || 'N/A';
+                            const comercioProd = p.comercio_email || 'N/A';
                             return `
                                 <tr class="border-b border-slate-100">
                                     <td class="p-3 font-bold">${nombreProd}</td>
@@ -603,7 +601,7 @@
                         nombre: v.nombre,
                         email: v.email,
                         rol: v.rol || 'Vendedor',
-                        comercio: v.comercio || v.dueno_email || v.duenio_email || v.comercio_email || 'Sin comercio',
+                        comercio: v.comercio || v.comercio_email || 'Sin comercio',
                         telefono: v.telefono || 'N/A',
                         activo: v.activo
                     });
@@ -735,10 +733,8 @@
             const telefono = document.getElementById('modal-telefono').value.trim() || 'N/A';
 
             const datosUsuario = {
-                dueno_email: comercio,
-                duenio_email: comercio,
-                comercio_email: comercio,
                 comercio: comercio,
+                comercio_email: comercio,
                 nombre: nombre,
                 email: email,
                 telefono: telefono,
@@ -803,8 +799,6 @@
                     
                     const payloadProducto = {
                         comercio_email: comercio_email,
-                        dueno_email: comercio_email,
-                        duenio_email: comercio_email,
                         nombre: nombre,
                         nombre_producto: nombre,
                         precio: precio,
@@ -921,7 +915,7 @@
                             return `
                                 <tr class="border-b border-slate-100">
                                     <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${numOrden}</button></td>
-                                    <td class="p-3">${o.comercio_email || o.comercio || 'polar'}</td>
+                                    <td class="p-3">${o.comercio_email || 'polar'}</td>
                                     <td class="p-3">${o.cliente_nombre || 'N/A'}</td>
                                     <td class="p-3">${o.cliente_telefono || 'N/A'}</td>
                                     <td class="p-3">${vendedorOrden}</td>
@@ -1072,7 +1066,7 @@
             if (!container) return;
 
             const misVendedores = data ? data.filter(v => {
-                const c = (v.comercio || v.dueno_email || v.duenio_email || v.comercio_email || '').toLowerCase().trim();
+                const c = (v.comercio || v.comercio_email || '').toLowerCase().trim();
                 return c === comercioId || c.includes('polar') || comercioId.includes('polar');
             }) : [];
 
@@ -1134,10 +1128,7 @@
 
             cacheCatalogoDueno = data.filter(p => {
                 const cEmail = (p.comercio_email || '').toLowerCase().trim();
-                const dEmail = (p.dueno_email || '').toLowerCase().trim();
-                const dnEmail = (p.duenio_email || '').toLowerCase().trim();
-                
-                return cEmail === comercioId || dEmail === comercioId || dnEmail === comercioId || cEmail.includes('polar') || comercioId.includes('polar');
+                return cEmail === comercioId || cEmail.includes('polar') || comercioId.includes('polar');
             });
 
             renderizarListaCatalogoDueno(cacheCatalogoDueno);
@@ -1225,7 +1216,7 @@
             cargarEstadisticasDueno();
         }
 
-        // --- ESTADÍSTICAS Y ÓRDENES DEL DUEÑO (ROBUSTO Y COMPATIBLE) ---
+        // --- ESTADÍSTICAS Y ÓRDENES DEL DUEÑO ---
         async function cargarEstadisticasDueno() {
             const container = document.getElementById('lista-ordenes-estadisticas');
             if (!container) return;
@@ -1249,10 +1240,7 @@
 
             const pedidos = todosLosPedidos.filter(p => {
                 const cEmail = (p.comercio_email || '').toLowerCase().trim();
-                const dEmail = (p.dueno_email || '').toLowerCase().trim();
-                const dnEmail = (p.duenio_email || '').toLowerCase().trim();
-                const com = (p.comercio || '').toLowerCase().trim();
-                return cEmail === comercioId || dEmail === comercioId || dnEmail === comercioId || com === comercioId || cEmail.includes('polar') || comercioId.includes('polar') || true;
+                return cEmail === comercioId || cEmail.includes('polar') || comercioId.includes('polar') || true;
             });
 
             let ventasTotalesCerradas = pedidos.filter(p => p.estatus === 'Concretado').length;
@@ -1404,7 +1392,7 @@
                     <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-xs space-y-1">
                         <p><strong>Estatus Actual:</strong> <span class="font-bold uppercase">${est}</span></p>
                         <p><strong>Fecha y Hora:</strong> ${fechaOrden}</p>
-                        <p><strong>Comercio Afiliado:</strong> ${orden.comercio_email || orden.comercio || 'polar'}</p>
+                        <p><strong>Comercio Afiliado:</strong> ${orden.comercio_email || 'polar'}</p>
                         <p><strong>Vendedor Asignado:</strong> ${vend}</p>
                     </div>
                     <div>
@@ -1434,7 +1422,7 @@
             const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*');
             
             const misVendedores = vendedores ? vendedores.filter(v => {
-                const c = (v.comercio || v.dueno_email || v.duenio_email || v.comercio_email || '').toLowerCase().trim();
+                const c = (v.comercio || v.comercio_email || '').toLowerCase().trim();
                 return c === comercioId.toLowerCase().trim() || c.includes('polar') || comercioId.includes('polar');
             }) : [];
 
@@ -1493,7 +1481,7 @@
             doc.setFont("helvetica", "normal");
             doc.text(`Número de Orden: ${numOrden}`, 14, 30);
             doc.text(`Fecha y Hora: ${fechaOrden}`, 14, 36);
-            doc.text(`Comercio Afiliado: ${orden.comercio_email || orden.comercio || 'polar'}`, 14, 42);
+            doc.text(`Comercio Afiliado: ${orden.comercio_email || 'polar'}`, 14, 42);
             doc.text(`Vendedor Asignado: ${vend}`, 14, 48);
 
             doc.line(14, 53, 196, 53);
