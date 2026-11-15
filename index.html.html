@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketplace Multi-Comercio & CRM</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS & Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #18181b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- BARRA SUPERIOR / NAVEGACIÓN PÚBLICA -->
+    <header class="bg-zinc-900 border-b border-zinc-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-red-600/30">
+                <i class="fa-solid fa-store"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-white text-base tracking-wide">Marketplace Virtual</h1>
+                <span class="text-[10px] uppercase tracking-wider text-red-500 font-semibold">Comercios Afiliados Independientes</span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <button onclick="abrirCarrito()" class="relative px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-semibold transition flex items-center space-x-2 cursor-pointer border border-zinc-700">
+                <i class="fa-solid fa-cart-shopping text-red-500 text-sm"></i>
+                <span>Carrito</span>
+                <span id="badge-carrito" class="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow">0</span>
+            </button>
+            <button onclick="abrirModalLogin()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold transition flex items-center space-x-2 cursor-pointer shadow-lg shadow-red-600/30">
+                <i class="fa-solid fa-user-lock"></i>
+                <span>Acceso Socios / Admin</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENIDO PRINCIPAL: TIENDA PÚBLICA -->
+    <main class="flex-1 p-6 md:p-10 max-w-7xl mx-auto w-full space-y-8">
+        <div class="bg-gradient-to-r from-red-950/40 via-zinc-900 to-zinc-950 p-8 rounded-3xl border border-red-500/20 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="space-y-2 text-center md:text-left">
+                <span class="px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-[10px] font-extrabold uppercase tracking-widest">Catálogo Abierto</span>
+                <h2 class="text-3xl font-extrabold text-white tracking-tight">Compra directo a tus comercios favoritos</h2>
+                <p class="text-xs text-zinc-400 max-w-xl">Selecciona productos de múltiples tiendas en un solo carrito. Al realizar tu pedido, será atendido por un asesor dedicado vía WhatsApp de forma inmediata.</p>
+            </div>
+            <div class="w-full md:w-72">
+                <input type="text" id="input-buscar-marketplace" onkeyup="filtrarProductosMarketplace()" placeholder="Buscar producto o comercio..." class="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-2xl text-xs text-white outline-none focus:ring-2 focus:ring-red-500">
+            </div>
+        </div>
+
+        <!-- LISTADO DE PRODUCTOS DISPONIBLES POR COMERCIO -->
+        <section class="space-y-4">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-zinc-400 flex items-center space-x-2">
+                <i class="fa-solid fa-boxes-stacked text-red-500"></i>
+                <span>Productos en Exhibición</span>
+            </h3>
+            <div id="grid-productos-publicos" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <p class="text-zinc-500 text-xs col-span-full text-center py-12">Cargando catálogo de comercios...</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL DE LOGIN / ACCESO RESTRINGIDO -->
+    <div id="modal-login" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/90 p-4 backdrop-blur-sm">
+        <div class="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl shadow-2xl w-full max-w-md relative">
+            <button onclick="cerrarModalLogin()" class="absolute top-6 right-6 text-zinc-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-red-600/10 text-red-500 mb-3 border border-red-500/20">
+                    <i class="fa-solid fa-shield-halved text-2xl"></i>
+                </div>
+                <h2 class="text-xl font-bold text-white">Acceso al Sistema</h2>
+                <p class="text-xs text-zinc-400 mt-1">Administradores, Dueños de Negocio y Vendedores</p>
+            </div>
+
+            <form id="form-login-sistema" class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Correo Electrónico</label>
+                    <input type="email" id="login-email" required placeholder="negocio.01@gmail.com" class="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white text-xs outline-none focus:ring-2 focus:ring-red-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Contraseña</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-white text-xs outline-none focus:ring-2 focus:ring-red-500">
+                </div>
+                <div id="login-error" class="hidden p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs text-center font-medium"></div>
+                <button type="submit" class="w-full py-3.5 bg-red-600 hover:bg-red-500 font-semibold text-white rounded-xl shadow-lg shadow-red-600/30 transition text-xs cursor-pointer">Iniciar Sesión</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DEL CARRITO DE COMPRAS -->
+    <div id="modal-carrito" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4">
+        <div class="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl w-full max-w-xl space-y-5 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-cart-shopping text-red-500"></i>
+                    <span>Tu Carrito de Compras</span>
+                </h2>
+                <button onclick="cerrarCarrito()" class="text-zinc-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div id="contenedor-items-carrito" class="space-y-3">
+                <p class="text-zinc-500 text-xs text-center py-6">Tu carrito está vacío.</p>
+            </div>
+
+            <div class="border-t border-zinc-800 pt-4 space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Tu Nombre</label>
+                        <input type="text" id="cliente-nombre-pedido" placeholder="Ej. Carlos Pérez" class="w-full p-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white text-xs outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Tu Teléfono / WhatsApp</label>
+                        <input type="text" id="cliente-telefono-pedido" placeholder="Ej. +584121234567" class="w-full p-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white text-xs outline-none">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between bg-zinc-950 p-4 rounded-2xl border border-zinc-800">
+                    <span class="text-xs font-bold uppercase text-zinc-400">Total General:</span>
+                    <span id="carrito-total-general" class="text-xl font-extrabold text-emerald-400">$0.00</span>
+                </div>
+
+                <button onclick="procesarPedidoMarketplace()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-emerald-600/30 cursor-pointer flex items-center justify-center space-x-2">
+                    <i class="fa-brands fa-whatsapp text-lg"></i>
+                    <span>Realizar Pedido y Enviar a WhatsApp</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL DE GESTIÓN PRIVADO (DUEÑOS, VENDEDORES, ADMIN) -->
+    <div id="panel-privado" class="hidden fixed inset-0 z-50 bg-zinc-950 flex flex-col md:flex-row overflow-hidden">
+        <aside class="w-full md:w-64 bg-zinc-900 border-r border-zinc-800 p-5 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-zinc-800">
+                    <div class="w-9 h-9 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold">
+                        <i class="fa-solid fa-user-gear"></i>
+                    </div>
+                    <div>
+                        <h3 id="panel-user-email" class="font-bold text-white text-xs truncate w-40">usuario@gmail.com</h3>
+                        <span id="panel-user-role" class="text-[10px] font-extrabold text-red-500 uppercase tracking-widest">ROL</span>
+                    </div>
+                </div>
+                <nav id="menu-privado-nav" class="space-y-1">
+                    <!-- Dinámico según rol -->
+                </nav>
+            </div>
+            <button onclick="cerrarSesionPrivada()" class="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-semibold transition cursor-pointer">
+                <i class="fa-solid fa-right-from-bracket mr-2"></i> Cerrar Sesión
+            </button>
+        </aside>
+
+        <main class="flex-1 p-6 md:p-8 overflow-y-auto custom-scrollbar bg-zinc-900/40" id="contenido-privado-dinamico">
+            <!-- Contenido inyectado dinámicamente -->
+        </main>
+    </div>
+
+    <!-- Supabase SDK & Config -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js" onerror="console.log('Usando respaldo interno de configuración')"></script>
+
+    <script>
+        const SUPABASE_URL = (typeof SUPABASE_CONFIG !== 'undefined' && SUPABASE_CONFIG.URL) ? SUPABASE_CONFIG.URL : 'https://bjfwastcdortcqoisjpv.supabase.co';
+        const SUPABASE_KEY = (typeof SUPABASE_CONFIG !== 'undefined' && SUPABASE_CONFIG.KEY) ? SUPABASE_CONFIG.KEY : 'sb_publishable_qMGJ6y1WePCDg3SCU9ZZg_Dg7hfRop';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let productosGlobal = [];
+        let carritoGlobal = [];
+        let usuarioActual = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarProductosPublicos();
+        });
+
+        async function cargarProductosPublicos() {
+            const { data, error } = await _supabase.from('productos_marketplace').select('*');
+            if (error) {
+                console.error("Error cargando productos:", error);
+                return;
+            }
+            productosGlobal = data || [];
+            renderizarProductosPublicos(productosGlobal);
+        }
+
+        function renderizarProductosPublicos(lista) {
+            const grid = document.getElementById('grid-productos-publicos');
+            if (!grid) return;
+
+            if (lista.length === 0) {
+                grid.innerHTML = `<p class="text-zinc-500 text-xs col-span-full text-center py-12">No hay productos disponibles en este momento.</p>`;
+                return;
+            }
+
+            grid.innerHTML = lista.map(p => `
+                <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col justify-between space-y-4 shadow-lg hover:border-red-500/40 transition">
+                    <div>
+                        <div class="h-36 bg-zinc-950 rounded-xl mb-3 flex items-center justify-center text-zinc-700 overflow-hidden relative">
+                            ${p.imagen_url ? `<img src="${p.imagen_url}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-image text-3xl"></i>`}
+                            <span class="absolute top-2 right-2 bg-zinc-950/80 text-zinc-300 text-[10px] font-mono px-2 py-0.5 rounded border border-zinc-800">Stock: ${p.stock}</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">${p.duenio_email}</span>
+                        <h4 class="font-bold text-white text-sm mt-2">${p.nombre_producto}</h4>
+                        <p class="text-xs text-zinc-400 mt-1 line-clamp-2">${p.descripcion || 'Sin descripción'}</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-3 border-t border-zinc-800">
+                        <span class="text-base font-extrabold text-emerald-400">$${Number(p.precio).toFixed(2)}</span>
+                        <button onclick='agregarAlCarrito(${JSON.stringify(p)})' class="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold transition cursor-pointer shadow-lg shadow-red-600/20">
+                            <i class="fa-solid fa-cart-plus mr-1"></i> Agregar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filtrarProductosMarketplace() {
+            const filtro = document.getElementById('input-buscar-marketplace').value.toLowerCase();
+            const filtrados = productosGlobal.filter(p => 
+                p.nombre_producto.toLowerCase().includes(filtro) || 
+                p.duenio_email.toLowerCase().includes(filtro)
+            );
+            renderizarProductosPublicos(filtrados);
+        }
+
+        function agregarAlCarrito(producto) {
+            const existente = carritoGlobal.find(item => item.id === producto.id);
+            if (existente) {
+                if (existente.cantidad < producto.stock) {
+                    existente.cantidad++;
+                } else {
+                    alert('Has alcanzado el límite de stock disponible.');
+                }
+            } else {
+                carritoGlobal.push({ ...producto, cantidad: 1 });
+            }
+            actualizarContadorCarrito();
+            alert(`¡"${producto.nombre_producto}" agregado al carrito!`);
+        }
+
+        function actualizarContadorCarrito() {
+            const totalItems = carritoGlobal.reduce((acc, item) => acc + item.cantidad, 0);
+            document.getElementById('badge-carrito').textContent = totalItems;
+        }
+
+        function abrirCarrito() {
+            const contenedor = document.getElementById('contenedor-items-carrito');
+            const totalGeneralEl = document.getElementById('carrito-total-general');
+            if (carritoGlobal.length === 0) {
+                contenedor.innerHTML = `<p class="text-zinc-500 text-xs text-center py-6">Tu carrito está vacío.</p>`;
+                totalGeneralEl.textContent = '$0.00';
+            } else {
+                let total = 0;
+                contenedor.innerHTML = carritoGlobal.map((item, idx) => {
+                    const subtotal = item.precio * item.cantidad;
+                    total += subtotal;
+                    return `
+                        <div class="flex items-center justify-between bg-zinc-950 p-3 rounded-2xl border border-zinc-800 text-xs">
+                            <div>
+                                <span class="font-bold text-white">${item.nombre_producto}</span>
+                                <div class="text-[10px] text-zinc-400">Comercio: ${item.duenio_email}</div>
+                                <div class="text-[10px] text-emerald-400 font-semibold">$${item.precio} x ${item.cantidad} = $${subtotal.toFixed(2)}</div>
+                            </div>
+                            <button onclick="eliminarItemCarrito(${idx})" class="text-zinc-500 hover:text-red-400 p-2 cursor-pointer"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                }).join('');
+                totalGeneralEl.textContent = `$${total.toFixed(2)}`;
+            }
+            document.getElementById('modal-carrito').classList.remove('hidden');
+        }
+
+        function cerrarCarrito() { document.getElementById('modal-carrito').classList.add('hidden'); }
+        function eliminarItemCarrito(idx) { carritoGlobal.splice(idx, 1); actualizarContadorCarrito(); abrirCarrito(); }
+
+        // PROCESAMIENTO DE PEDIDO Y ASIGNACIÓN EQUITATIVA (ROUND-ROBIN) A VENDEDORES
+        async function procesarPedidoMarketplace() {
+            const nombreCliente = document.getElementById('cliente-nombre-pedido').value.trim();
+            const telefonoCliente = document.getElementById('cliente-telefono-pedido').value.trim();
+
+            if (!nombreCliente || !telefonoCliente) { alert('Por favor ingresa tu nombre y teléfono de contacto.'); return; }
+            if (carritoGlobal.length === 0) { alert('El carrito está vacío.'); return; }
+
+            const comerciosAgrupados = {};
+            carritoGlobal.forEach(item => {
+                if (!comerciosAgrupados[item.duenio_email]) comerciosAgrupados[item.duenio_email] = [];
+                comerciosAgrupados[item.duenio_email].push(item);
+            });
+
+            for (const [duenioEmail, itemsComercio] of Object.entries(comerciosAgrupados)) {
+                const { data: pedidosExistentes } = await _supabase.from('pedidos_marketplace').select('nro_ticket').eq('duenio_email', duenioEmail);
+                let maxTicket = 0;
+                (pedidosExistentes || []).forEach(p => {
+                    const num = parseInt(p.nro_ticket, 10);
+                    if (!isNaN(num) && num > maxTicket) maxTicket = num;
+                });
+                const nroTicket = String(maxTicket + 1).padStart(8, '0');
+
+                const { data: vendedores } = await _supabase.from('vendedores_comercio').select('*').eq('duenio_email', duenioEmail).eq('activo', true);
+                
+                let vendedorAsignado = null;
+                if (vendedores && vendedores.length > 0) {
+                    const { data: conteoPedidos } = await _supabase.from('pedidos_marketplace').select('vendedor_asignado_telefono').eq('duenio_email', duenioEmail);
+                    const frecuencias = {};
+                    vendedores.forEach(v => frecuencias[v.telefono] = 0);
+                    (conteoPedidos || []).forEach(p => { if (frecuencias[p.vendedor_asignado_telefono] !== undefined) frecuencias[p.vendedor_asignado_telefono]++; });
+
+                    vendedores.sort((a, b) => frecuencias[a.telefono] - frecuencias[b.telefono]);
+                    vendedorAsignado = vendedores[0];
+                }
+
+                const totalComercio = itemsComercio.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
+
+                const nuevoPedido = {
+                    nro_ticket: nroTicket,
+                    duenio_email: duenioEmail,
+                    cliente_nombre: nombreCliente,
+                    cliente_telefono: telefonoCliente,
+                    productos_json: itemsComercio,
+                    total: totalComercio,
+                    vendedor_asignado_email: vendedorAsignado ? vendedorAsignado.email : 'Sin Vendedor Asignado',
+                    vendedor_asignado_telefono: vendedorAsignado ? vendedorAsignado.telefono : '584120000000',
+                    estatus_pedido: 'PENDIENTE',
+                    created_at: new Date().toISOString()
+                };
+
+                await _supabase.from('pedidos_marketplace').insert([nuevoPedido]);
+
+                if (vendedorAsignado) {
+                    const detalleTexto = itemsComercio.map(i => `- ${i.cantidad}x ${i.nombre_producto} ($${i.precio})`).join('%0A');
+                    const mensajeWhatsApp = `Hola! Nuevo pedido Ticket #${nroTicket}%0A*Cliente:* ${nombreCliente}%0A*Teléfono:* ${telefonoCliente}%0A*Productos:*%0A${detalleTexto}%0A*Total:* $${totalComercio.toFixed(2)}%0A%0APor favor gestionar el envío y pago.`;
+                    
+                    window.open(`https://wa.me/${vendedorAsignado.telefono.replace(/[^0-9]/g, '')}?text=${mensajeWhatsApp}`, '_blank');
+                }
+            }
+
+            alert('¡Pedidos realizados y direccionados con éxito a los comercios correspondientes!');
+            carritoGlobal = [];
+            actualizarContadorCarrito();
+            cerrarCarrito();
+        }
+
+        function abrirModalLogin() { document.getElementById('modal-login').classList.remove('hidden'); }
+        function cerrarModalLogin() { document.getElementById('modal-login').classList.add('hidden'); }
+
+        document.getElementById('form-login-sistema').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim().toLowerCase();
+            const password = document.getElementById('login-password').value.trim();
+            const errorBox = document.getElementById('login-error');
+
+            errorBox.classList.add('hidden');
+
+            try {
+                let autorizado = false;
+                let rolDetectado = 'OPERADOR';
+
+                if ((email === 'negocio.01@gmail.com' || email === 'negocio.02@gmail.com') && password === 'Negocio*2026') {
+                    autorizado = true;
+                    rolDetectado = 'DUEÑO_NEGOCIO';
+                } else if (email === 'elio.ravelo19@gmail.com') {
+                    autorizado = true;
+                    rolDetectado = 'ADMINISTRADOR';
+                } else {
+                    const { data: usr } = await _supabase.from('usuarios_crm').select('*').eq('email', email).single();
+                    if (usr) {
+                        autorizado = true;
+                        rolDetectado = usr.rol;
+                    }
+                }
+
+                if (!autorizado) {
+                    errorBox.textContent = "Credenciales incorrectas.";
+                    errorBox.classList.remove('hidden');
+                    return;
+                }
+
+                usuarioActual = { email, rol: rolDetectado };
+                cerrarModalLogin();
+                abrirPanelPrivado(usuarioActual);
+
+            } catch (err) {
+                errorBox.textContent = "Error al autenticar usuario.";
+                errorBox.classList.remove('hidden');
+            }
+        });
+
+        function abrirPanelPrivado(user) {
+            document.getElementById('panel-user-email').textContent = user.email;
+            document.getElementById('panel-user-role').textContent = user.rol;
+            document.getElementById('panel-privado').classList.remove('hidden');
+
+            const nav = document.getElementById('menu-privado-nav');
+            if (user.rol === 'DUEÑO_NEGOCIO') {
+                nav.innerHTML = `
+                    <button onclick="renderPanelDuenioNegocio('catalogo')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition"><i class="fa-solid fa-box mr-2 text-red-500"></i> Mi Catálogo & Stock</button>
+                    <button onclick="renderPanelDuenioNegocio('vendedores')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition"><i class="fa-solid fa-users mr-2 text-red-500"></i> Gestionar Vendedores</button>
+                    <button onclick="renderPanelDuenioNegocio('ventas')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition"><i class="fa-solid fa-chart-line mr-2 text-red-500"></i> Ventas & Estadísticas</button>
+                `;
+                renderPanelDuenioNegocio('catalogo');
+            } else {
+                nav.innerHTML = `<p class="text-xs text-zinc-500 p-2">Panel de Administración General</p>`;
+            }
+        }
+
+        async function renderPanelDuenioNegocio(seccion) {
+            const contenedor = document.getElementById('contenido-privado-dinamico');
+            if (seccion === 'catalogo') {
+                contenedor.innerHTML = `
+                    <div class="space-y-6 max-w-4xl mx-auto">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-xl font-bold text-white">Gestión de Productos y Stock</h2>
+                        </div>
+                        <div class="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 space-y-4">
+                            <h3 class="text-sm font-bold text-red-400 uppercase">Agregar Nuevo Producto al Catálogo</h3>
+                            <div class="grid grid-cols-2 gap-3">
+                                <input type="text" id="nuevo-prod-nombre" placeholder="Nombre del producto" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                <input type="number" id="nuevo-prod-precio" placeholder="Precio ($)" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <input type="number" id="nuevo-prod-stock" placeholder="Stock disponible" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                <input type="text" id="nuevo-prod-img" placeholder="URL de imagen (opcional)" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                            </div>
+                            <textarea id="nuevo-prod-desc" placeholder="Descripción breve..." class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white"></textarea>
+                            <button onclick="guardarNuevoProducto()" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold cursor-pointer">Registrar Producto</button>
+                        </div>
+                    </div>
+                `;
+            } else if (seccion === 'vendedores') {
+                const { data: vend } = await _supabase.from('vendedores_comercio').select('*').eq('duenio_email', usuarioActual.email);
+                contenedor.innerHTML = `
+                    <div class="space-y-6 max-w-4xl mx-auto">
+                        <h2 class="text-xl font-bold text-white">Gestión de Vendedores (Asignación Equitativa)</h2>
+                        <div class="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 space-y-4">
+                            <h3 class="text-sm font-bold text-red-400 uppercase">Agregar Vendedor</h3>
+                            <div class="grid grid-cols-2 gap-3">
+                                <input type="text" id="vend-nombre" placeholder="Nombre del vendedor" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                <input type="text" id="vend-telefono" placeholder="Número WhatsApp (+58...)" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                            </div>
+                            <button onclick="guardarVendedor()" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold cursor-pointer">Registrar Vendedor</button>
+                        </div>
+                        <div class="bg-zinc-950 rounded-2xl border border-zinc-800 overflow-hidden">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-zinc-900 text-zinc-400 uppercase">
+                                    <tr><th class="p-3">Nombre</th><th class="p-3">Teléfono WhatsApp</th><th class="p-3 text-center">Acción</th></tr>
+                                </thead>
+                                <tbody class="divide-y divide-zinc-800 text-zinc-300">
+                                    ${(vend || []).map(v => `<tr><td class="p-3 font-bold">${v.nombre}</td><td class="p-3">${v.telefono}</td><td class="p-3 text-center"><button onclick="eliminarVendedor(${v.id})" class="text-red-400 hover:underline">Eliminar</button></td></tr>`).join('') || '<tr><td colspan="3" class="p-4 text-center text-zinc-500">No hay vendedores registrados.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } else if (seccion === 'ventas') {
+                const { data: pedidos } = await _supabase.from('pedidos_marketplace').select('*').eq('duenio_email', usuarioActual.email);
+                const totalIngresos = (pedidos || []).reduce((acc, p) => acc + Number(p.total), 0);
+                contenedor.innerHTML = `
+                    <div class="space-y-6 max-w-5xl mx-auto">
+                        <h2 class="text-xl font-bold text-white">Estadísticas y Ventas del Comercio</h2>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-zinc-950 p-5 rounded-2xl border border-zinc-800">
+                                <span class="text-[10px] uppercase font-bold text-zinc-400">Total Pedidos</span>
+                                <p class="text-2xl font-extrabold text-white mt-1">${(pedidos || []).length}</p>
+                            </div>
+                            <div class="bg-zinc-950 p-5 rounded-2xl border border-zinc-800">
+                                <span class="text-[10px] uppercase font-bold text-emerald-400">Ingresos Totales</span>
+                                <p class="text-2xl font-extrabold text-white mt-1">$${totalIngresos.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function guardarNuevoProducto() {
+            const nuevo = {
+                duenio_email: usuarioActual.email,
+                nombre_producto: document.getElementById('nuevo-prod-nombre').value,
+                precio: parseFloat(document.getElementById('nuevo-prod-precio').value),
+                stock: parseInt(document.getElementById('nuevo-prod-stock').value),
+                imagen_url: document.getElementById('nuevo-prod-img').value,
+                descripcion: document.getElementById('nuevo-prod-desc').value
+            };
+            await _supabase.from('productos_marketplace').insert([nuevo]);
+            alert('¡Producto guardado con éxito!');
+            renderPanelDuenioNegocio('catalogo');
+            cargarProductosPublicos();
+        }
+
+        async function guardarVendedor() {
+            const v = {
+                duenio_email: usuarioActual.email,
+                nombre: document.getElementById('vend-nombre').value,
+                telefono: document.getElementById('vend-telefono').value,
+                activo: true
+            };
+            await _supabase.from('vendedores_comercio').insert([v]);
+            alert('¡Vendedor registrado con éxito!');
+            renderPanelDuenioNegocio('vendedores');
+        }
+
+        async function eliminarVendedor(id) {
+            if (confirm('¿Eliminar este vendedor?')) {
+                await _supabase.from('vendedores_comercio').delete().eq('id', id);
+                renderPanelDuenioNegocio('vendedores');
+            }
+        }
+
+        function cerrarSesionPrivada() { document.getElementById('panel-privado').classList.add('hidden'); location.reload(); }
+    </script>
+</body>
+</html>
