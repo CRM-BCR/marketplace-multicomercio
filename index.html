@@ -379,16 +379,18 @@
             }
 
             if (vendedorAsignado && vendedorAsignado.telefono) {
-                const detalleTexto = itemsComercio.map(i => `- ${i.cantidad}x ${i.nombre_producto} ($${i.precio})`).join('%0A');
-                const mensajeWhatsApp = `Hola! Nuevo pedido Ticket #${nroTicket}%0A*Cliente:* ${nombreCliente}%0A*Teléfono:* ${telefonoCliente}%0A*Productos:*%0A${detalleTexto}%0A*Total:* $${totalComercio.toFixed(2)}%0A%0APor favor gestionar el envío y pago.`;
+                // Construcción detallada del mensaje completo para WhatsApp
+                const detalleProductosTexto = itemsComercio.map(i => `• ${i.cantidad}x ${i.nombre_producto} - $${Number(i.precio).toFixed(2)} c/u (Subtotal: $${(i.precio * i.cantidad).toFixed(2)})`).join('\n');
                 
-                // Normalización robusta del número de WhatsApp del vendedor
+                const mensajeCompleto = `Hola! Nuevo pedido Ticket #${nroTicket}\n\n*Cliente:* ${nombreCliente}\n*Teléfono:* ${telefonoCliente}\n\n*Detalle del Carrito:* \n${detalleProductosTexto}\n\n*Monto Total:* $${totalComercio.toFixed(2)}\n\nPor favor gestionar el pago y envío.`;
+                
+                // Normalización del número de teléfono del vendedor
                 let telVendedor = vendedorAsignado.telefono.replace(/[^0-9]/g, '');
                 if (telVendedor.startsWith('0') && telVendedor.length === 11) {
                     telVendedor = '58' + telVendedor.substring(1);
                 }
 
-                window.open(`https://wa.me/${telVendedor}?text=${mensajeWhatsApp}`, '_blank');
+                window.open(`https://wa.me/${telVendedor}?text=${encodeURIComponent(mensajeCompleto)}`, '_blank');
             } else {
                 alert('¡Pedido registrado con éxito! (Nota: No hay vendedores activos disponibles para redirección automática a WhatsApp).');
             }
