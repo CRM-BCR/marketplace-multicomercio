@@ -308,6 +308,9 @@
             const datosPedido = {
                 numero_orden: numeroOrden,
                 comercio_email: comercioEmail,
+                dueno_email: comercioEmail,
+                duenio_email: comercioEmail,
+                comercio: comercioEmail,
                 cliente_nombre: nombre,
                 cliente_telefono: telefono,
                 vendedor_email: vendedorAsignado ? vendedorAsignado.email : 'Sin asignar',
@@ -318,14 +321,23 @@
                 fecha_creacion: new Date().toISOString()
             };
 
+            // 1. Guardar pedido en la base de datos
             await supabaseClient.from('pedidos_marketplace').insert([datosPedido]);
 
-            let textoMensaje = `Hola, te escribo para concretar mi orden N° ${numeroOrden}.\n\n` +
-                `👤 *Cliente:* ${nombre}\n` +
-                `📱 *Teléfono:* ${telefono}\n\n` +
-                `🛒 *Detalle de Productos:*` +
-                carrito.map(i => `\n• ${i.nombre} (Cantidad: ${i.cantidad}) - Subtotal: $${i.precio * i.cantidad}`).join('') +
-                `\n\n💰 *Monto Total:* $${totalPedido.toFixed(2)}`;
+            // 2. Descontar stock automáticamente de cada producto comprado
+            for (const item of carrito) {
+                const { data: prodActual } = await supabaseClient.from('productos_marketplace').select('stock').eq('id', item.id).maybeSingle();
+                const stockActual = prodActual && prodActual.stock !== undefined ? prodActual.stock : (item.stock || 0);
+                const nuevoStock = Math.max(0, stockActual - item.cantidad);
+                
+                await supabaseClient
+                    .from('productos_marketplace')
+                    .update({ stock: nuevoStock })
+                    .eq('id', item.id);
+            }
+
+            // 3. Mensaje de WhatsApp estricto y simplificado solicitado
+            let textoMensaje = `Hola, te escribo para concretar mi orden N° ${numeroOrden}.`;
 
             carrito = [];
             document.getElementById('cart-count').innerText = 0;
@@ -340,7 +352,7 @@
             if (telVendedor) {
                 window.location.href = `https://wa.me/${telVendedor}?text=${mensajeWhatsApp}`;
             } else {
-                alert(`Pedido ${numeroOrden} registrado con éxito (Sin vendedor activo para asignar automáticamente).`);
+                alert(`Pedido ${numeroOrden} registrado con éxito (Stock descontado). Sin vendedor activo para asignar automáticamente.`);
                 verTiendaPublica();
             }
         }
@@ -607,7 +619,7 @@
                             <tr class="border-b border-slate-100">
                                 <td class="p-3 font-bold">${u.nombre}</td>
                                 <td class="p-3">${u.email}</td>
-                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full font-semibold ${u.rol === 'Administrador' ? 'bg-purple-100 text-purple-800' : u.rol === 'Dueño de Negocio' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'}">${u.rol}</span></td>
+                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${u.rol === 'Administrador' ? 'bg-purple-100 text-purple-800' : u.rol === 'Dueño de Negocio' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'}">${u.rol}</span></td>
                                 <td class="p-3 text-slate-600">${u.comercio}</td>
                                 <td class="p-3">${u.telefono}</td>
                                 <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${u.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
@@ -997,17 +1009,17 @@
         }
 
         async function cargarVendedoresPanelDueno() {
-            const comercioId = datosSesionRol.comercio || datosSesionRol.email;
-            const { data } = await supabaseClient
-                .from('vendedores_comercio')
-                .select('*')
-                .eq('comercio', comercioId)
-                .eq('rol', 'Vendedor');
-
+            const comercioId = (datosSesionRol.comercio || datosSesionRol.email || '').toLowerCase().trim();
+            const { data } = await supabaseClient.from('vendedores_comercio').select('*');
             const container = document.getElementById('lista-vendedores-dueno-container');
             if (!container) return;
 
-            if (!data || data.length === 0) {
+            const misVendedores = data ? data.filter(v => {
+                const c = (v.comercio || v.dueno_email || v.duenio_email || v.comercio_email || '').toLowerCase().trim();
+                return c === comercioId && (v.rol === 'Vendedor' || !v.rol);
+            }) : [];
+
+            if (misVendedores.length === 0) {
                 container.innerHTML = `<p class="text-slate-500 py-4">No tienes vendedores registrados todavía. Haz clic en "+ Nuevo Vendedor" para agregar uno.</p>`;
                 return;
             }
@@ -1024,7 +1036,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${data.map(v => `
+                        ${misVendedores.map(v => `
                             <tr class="border-b border-slate-100">
                                 <td class="p-3 font-bold">${v.nombre}</td>
                                 <td class="p-3">${v.email}</td>
@@ -1064,7 +1076,6 @@
                 return;
             }
 
-            // Filtrado flexible combinando todas las posibles variantes de columnas de comercio
             cacheCatalogoDueno = data.filter(p => {
                 const cEmail = (p.comercio_email || '').toLowerCase().trim();
                 const dEmail = (p.dueno_email || '').toLowerCase().trim();
@@ -1159,21 +1170,35 @@
             cargarEstadisticasDueno();
         }
 
+        // --- ESTADÍSTICAS Y ÓRDENES DEL DUEÑO (FILTRADO ROBUSTO MULTICAMPO) ---
         async function cargarEstadisticasDueno() {
-            const comercioId = datosSesionRol.comercio || datosSesionRol.email;
-            const { data: pedidos } = await supabaseClient.from('pedidos_marketplace').select('*').eq('comercio_email', comercioId).order('fecha_creacion', { ascending: false });
+            const comercioId = (datosSesionRol.comercio || datosSesionRol.email || '').toLowerCase().trim();
+            const { data: todosLosPedidos } = await supabaseClient.from('pedidos_marketplace').select('*').order('fecha_creacion', { ascending: false });
             
-            if (!pedidos) return;
+            if (!todosLosPedidos) return;
+
+            const pedidos = todosLosPedidos.filter(p => {
+                const cEmail = (p.comercio_email || '').toLowerCase().trim();
+                const dEmail = (p.dueno_email || '').toLowerCase().trim();
+                const dnEmail = (p.duenio_email || '').toLowerCase().trim();
+                const com = (p.comercio || '').toLowerCase().trim();
+                return cEmail === comercioId || dEmail === comercioId || dnEmail === comercioId || com === comercioId;
+            });
 
             let totalVentas = pedidos.length;
             let ingresosTotales = pedidos.filter(p => p.estatus === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
             let ventasAbiertas = pedidos.filter(p => p.estatus === 'Pendiente').length;
             let ventasCerradas = pedidos.filter(p => p.estatus === 'Concretado' || p.estatus === 'No Concretado').length;
 
-            document.getElementById('stat-totales').innerText = totalVentas;
-            document.getElementById('stat-ingresos').innerText = `$${ingresosTotales.toFixed(2)}`;
-            document.getElementById('stat-abiertas').innerText = ventasAbiertas;
-            document.getElementById('stat-cerradas').innerText = ventasCerradas;
+            const statTotalesEl = document.getElementById('stat-totales');
+            const statIngresosEl = document.getElementById('stat-ingresos');
+            const statAbiertasEl = document.getElementById('stat-abiertas');
+            const statCerradasEl = document.getElementById('stat-cerradas');
+
+            if (statTotalesEl) statTotalesEl.innerText = totalVentas;
+            if (statIngresosEl) statIngresosEl.innerText = `$${ingresosTotales.toFixed(2)}`;
+            if (statAbiertasEl) statAbiertasEl.innerText = ventasAbiertas;
+            if (statCerradasEl) statCerradasEl.innerText = ventasCerradas;
 
             const ordenesSinAsignar = pedidos.filter(p => !p.vendedor_email || p.vendedor_email === 'Sin asignar');
             const alertaBox = document.getElementById('alerta-ordenes-pendientes');
