@@ -21,7 +21,7 @@
 </head>
 <body class="bg-zinc-950 text-zinc-100 font-sans antialiased min-h-screen flex flex-col">
 
-    <!-- BARRA SUPERIOR / NAVEGACIÓN PÚBLica -->
+    <!-- BARRA SUPERIOR / NAVEGACIÓN PÚBLICA -->
     <header class="bg-zinc-900 border-b border-zinc-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center space-x-3">
             <div class="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-red-600/30">
@@ -52,7 +52,7 @@
             <div class="space-y-2 text-center md:text-left">
                 <span class="px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-[10px] font-extrabold uppercase tracking-widest">Catálogo Abierto</span>
                 <h2 class="text-3xl font-extrabold text-white tracking-tight">Compra directo a tus comercios favoritos</h2>
-                <p class="text-xs text-zinc-400 max-w-xl">Selecciona productos de múltiples tiendas en un solo carrito. Al realizar tu pedido, será atendido por un asesor dedicado vía WhatsApp de forma inmediata.</p>
+                <p class="text-xs text-zinc-400 max-w-xl">Selecciona los productos de tu comercio favorito. Al realizar tu pedido, será atendido por un asesor dedicado vía WhatsApp de forma inmediata.</p>
             </div>
             <div class="w-full md:w-72">
                 <input type="text" id="input-buscar-marketplace" onkeyup="filtrarProductosMarketplace()" placeholder="Buscar producto o comercio..." class="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-2xl text-xs text-white outline-none focus:ring-2 focus:ring-red-500">
@@ -79,7 +79,7 @@
                     <i class="fa-solid fa-shield-halved text-2xl"></i>
                 </div>
                 <h2 class="text-xl font-bold text-white">Acceso al Sistema</h2>
-                <p class="text-xs text-zinc-400 mt-1">Administradores, Dueños de Negocio y Vendedores</p>
+                <p class="text-xs text-zinc-400 mt-1">Administradores y Dueños de Negocio</p>
             </div>
 
             <form id="form-login-sistema" class="space-y-4">
@@ -227,7 +227,20 @@
             renderizarProductosPublicos(filtrados);
         }
 
+        // CONTROL DE CARRITO EXCLUSIVO POR TIENDA
         function agregarAlCarrito(producto) {
+            if (carritoGlobal.length > 0) {
+                const comercioActual = carritoGlobal[0].duenio_email;
+                if (comercioActual !== producto.duenio_email) {
+                    const confirmar = confirm(`Tu carrito contiene productos de otro comercio (${comercioActual}). \n\n¿Deseas vaciar el carrito actual para agregar productos de este nuevo comercio?`);
+                    if (confirmar) {
+                        carritoGlobal = [];
+                    } else {
+                        return;
+                    }
+                }
+            }
+
             const existente = carritoGlobal.find(item => item.id === producto.id);
             if (existente) {
                 if (existente.cantidad < producto.stock) {
@@ -284,66 +297,62 @@
             if (!nombreCliente || !telefonoCliente) { alert('Por favor ingresa tu nombre y teléfono de contacto.'); return; }
             if (carritoGlobal.length === 0) { alert('El carrito está vacío.'); return; }
 
-            const comerciosAgrupados = {};
-            carritoGlobal.forEach(item => {
-                if (!comerciosAgrupados[item.duenio_email]) comerciosAgrupados[item.duenio_email] = [];
-                comerciosAgrupados[item.duenio_email].push(item);
+            // Como es exclusivo por tienda, todos los items pertenecen al mismo duenio_email
+            const duenioEmail = carritoGlobal[0].duenio_email;
+            const itemsComercio = carritoGlobal;
+
+            const { data: pedidosExistentes } = await _supabase.from('pedidos_marketplace').select('nro_ticket').eq('duenio_email', duenioEmail);
+            let maxTicket = 0;
+            (pedidosExistentes || []).forEach(p => {
+                const num = parseInt(p.nro_ticket, 10);
+                if (!isNaN(num) && num > maxTicket) maxTicket = num;
             });
+            const nroTicket = String(maxTicket + 1).padStart(8, '0');
 
-            for (const [duenioEmail, itemsComercio] of Object.entries(comerciosAgrupados)) {
-                const { data: pedidosExistentes } = await _supabase.from('pedidos_marketplace').select('nro_ticket').eq('duenio_email', duenioEmail);
-                let maxTicket = 0;
-                (pedidosExistentes || []).forEach(p => {
-                    const num = parseInt(p.nro_ticket, 10);
-                    if (!isNaN(num) && num > maxTicket) maxTicket = num;
-                });
-                const nroTicket = String(maxTicket + 1).padStart(8, '0');
+            const { data: vendedores } = await _supabase.from('vendedores_comercio').select('*').eq('duenio_email', duenioEmail).eq('activo', true);
+            
+            let vendedorAsignado = null;
+            if (vendedores && vendedores.length > 0) {
+                const { data: conteoPedidos } = await _supabase.from('pedidos_marketplace').select('vendedor_asignado_telefono').eq('duenio_email', duenioEmail);
+                const frecuencias = {};
+                vendedores.forEach(v => frecuencias[v.telefono] = 0);
+                (conteoPedidos || []).forEach(p => { if (frecuencias[p.vendedor_asignado_telefono] !== undefined) frecuencias[p.vendedor_asignado_telefono]++; });
 
-                const { data: vendedores } = await _supabase.from('vendedores_comercio').select('*').eq('duenio_email', duenioEmail).eq('activo', true);
-                
-                let vendedorAsignado = null;
-                if (vendedores && vendedores.length > 0) {
-                    const { data: conteoPedidos } = await _supabase.from('pedidos_marketplace').select('vendedor_asignado_telefono').eq('duenio_email', duenioEmail);
-                    const frecuencias = {};
-                    vendedores.forEach(v => frecuencias[v.telefono] = 0);
-                    (conteoPedidos || []).forEach(p => { if (frecuencias[p.vendedor_asignado_telefono] !== undefined) frecuencias[p.vendedor_asignado_telefono]++; });
-
-                    vendedores.sort((a, b) => frecuencias[a.telefono] - frecuencias[b.telefono]);
-                    vendedorAsignado = vendedores[0];
-                }
-
-                const totalComercio = itemsComercio.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
-
-                const nuevoPedido = {
-                    nro_ticket: nroTicket,
-                    duenio_email: duenioEmail,
-                    cliente_nombre: nombreCliente,
-                    cliente_telefono: telefonoCliente,
-                    productos_json: itemsComercio,
-                    total: totalComercio,
-                    vendedor_asignado_email: vendedorAsignado ? vendedorAsignado.email : 'Sin Vendedor Asignado',
-                    vendedor_asignado_telefono: vendedorAsignado ? vendedorAsignado.telefono : '584120000000',
-                    estatus_pedido: 'PENDIENTE',
-                    created_at: new Date().toISOString()
-                };
-
-                await _supabase.from('pedidos_marketplace').insert([nuevoPedido]);
-
-                // Descontar stock automáticamente de los productos comprados
-                for (const item of itemsComercio) {
-                    const nuevoStock = Math.max(0, item.stock - item.cantidad);
-                    await _supabase.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', item.id);
-                }
-
-                if (vendedorAsignado) {
-                    const detalleTexto = itemsComercio.map(i => `- ${i.cantidad}x ${i.nombre_producto} ($${i.precio})`).join('%0A');
-                    const mensajeWhatsApp = `Hola! Nuevo pedido Ticket #${nroTicket}%0A*Cliente:* ${nombreCliente}%0A*Teléfono:* ${telefonoCliente}%0A*Productos:*%0A${detalleTexto}%0A*Total:* $${totalComercio.toFixed(2)}%0A%0APor favor gestionar el envío y pago.`;
-                    
-                    window.open(`https://wa.me/${vendedorAsignado.telefono.replace(/[^0-9]/g, '')}?text=${mensajeWhatsApp}`, '_blank');
-                }
+                vendedores.sort((a, b) => frecuencias[a.telefono] - frecuencias[b.telefono]);
+                vendedorAsignado = vendedores[0];
             }
 
-            alert('¡Pedidos realizados y direccionados con éxito a los comercios correspondientes!');
+            const totalComercio = itemsComercio.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
+
+            const nuevoPedido = {
+                nro_ticket: nroTicket,
+                duenio_email: duenioEmail,
+                cliente_nombre: nombreCliente,
+                cliente_telefono: telefonoCliente,
+                productos_json: itemsComercio,
+                total: totalComercio,
+                vendedor_asignado_email: vendedorAsignado ? vendedorAsignado.email : 'Sin Vendedor Asignado',
+                vendedor_asignado_telefono: vendedorAsignado ? vendedorAsignado.telefono : '584120000000',
+                estatus_pedido: 'PENDIENTE',
+                created_at: new Date().toISOString()
+            };
+
+            await _supabase.from('pedidos_marketplace').insert([nuevoPedido]);
+
+            // Descontar stock automáticamente
+            for (const item of itemsComercio) {
+                const nuevoStock = Math.max(0, item.stock - item.cantidad);
+                await _supabase.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', item.id);
+            }
+
+            if (vendedorAsignado) {
+                const detalleTexto = itemsComercio.map(i => `- ${i.cantidad}x ${i.nombre_producto} ($${i.precio})`).join('%0A');
+                const mensajeWhatsApp = `Hola! Nuevo pedido Ticket #${nroTicket}%0A*Cliente:* ${nombreCliente}%0A*Teléfono:* ${telefonoCliente}%0A*Productos:*%0A${detalleTexto}%0A*Total:* $${totalComercio.toFixed(2)}%0A%0APor favor gestionar el envío y pago.`;
+                
+                window.open(`https://wa.me/${vendedorAsignado.telefono.replace(/[^0-9]/g, '')}?text=${mensajeWhatsApp}`, '_blank');
+            }
+
+            alert('¡Pedido realizado con éxito y asignado al vendedor correspondiente!');
             carritoGlobal = [];
             actualizarContadorCarrito();
             cerrarCarrito();
@@ -404,7 +413,6 @@
             if (user.rol === 'ADMINISTRADOR') {
                 nav.innerHTML = `
                     <button onclick="renderPanelAdmin('cargar-producto')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-plus-circle mr-2 text-red-500"></i> Cargar / Actualizar Producto</button>
-                    <button onclick="renderPanelAdmin('ver-todos')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-boxes-stacked mr-2 text-red-500"></i> Catálogo Global</button>
                 `;
                 renderPanelAdmin('cargar-producto');
             } else if (user.rol === 'DUEÑO_NEGOCIO') {
@@ -417,7 +425,6 @@
             }
         }
 
-        // PANEL EXCLUSIVO DEL ADMINISTRADOR PARA ASIGNAR PRODUCTOS A CUALQUIER COMERCIO
         async function renderPanelAdmin(seccion) {
             const contenedor = document.getElementById('contenido-privado-dinamico');
             if (seccion === 'cargar-producto') {
@@ -490,7 +497,6 @@
             }
         }
 
-        // PANEL DE DUEÑOS DE NEGOCIO (VER STOCK, AGREGAR UNIDADES O ELIMINAR)
         async function renderPanelDuenioNegocio(seccion) {
             const contenedor = document.getElementById('contenido-privado-dinamico');
             if (seccion === 'catalogo') {
