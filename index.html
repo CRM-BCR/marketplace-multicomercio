@@ -285,18 +285,42 @@
             }
         }
 
-        // --- PANEL DE ADMINISTRADOR ---
+        // --- PANEL DE ADMINISTRADOR (CON SIDEBAR) ---
         function renderizarPanelAdmin() {
             const main = document.getElementById('main-content');
             main.innerHTML = `
-                <div class="mb-6 flex justify-between items-center">
-                    <div>
-                        <h2 class="text-2xl font-bold text-slate-900">Panel de Administrador Global</h2>
-                        <p class="text-slate-500 text-sm">Control central de productos y auditoría de órdenes</p>
-                    </div>
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-slate-900">Panel de Administrador Global</h2>
+                    <p class="text-slate-500 text-sm">Control central del sistema</p>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div class="flex flex-col md:flex-row gap-6">
+                    <!-- Sidebar de Admin -->
+                    <div class="w-full md:w-64 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col space-y-2 h-fit">
+                        <h3 class="font-bold text-slate-900 text-sm uppercase px-2 tracking-wider text-slate-400 mb-1">Navegación</h3>
+                        <button onclick="cambiarTabAdmin('panel')" id="btn-admin-panel" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-indigo-600 text-white transition shadow-sm">Panel del Administrador</button>
+                        <button onclick="cambiarTabAdmin('auditorias')" id="btn-admin-auditorias" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Auditorías</button>
+                    </div>
+                    <!-- Contenido dinámico del Admin -->
+                    <div class="flex-1" id="admin-content-area"></div>
+                </div>
+            `;
+            cambiarTabAdmin('panel');
+        }
+
+        function cambiarTabAdmin(tab) {
+            ['panel', 'auditorias'].forEach(t => {
+                const btn = document.getElementById(`btn-admin-${t}`);
+                if (btn) {
+                    btn.className = t === tab ? 
+                        'w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-indigo-600 text-white transition shadow-sm' : 
+                        'w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition';
+                }
+            });
+
+            const area = document.getElementById('admin-content-area');
+            if (tab === 'panel') {
+                area.innerHTML = `
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-xl">
                         <h3 class="font-bold text-lg mb-4 text-indigo-600">Cargar Producto al Comercio</h3>
                         <form onsubmit="adminGuardarProducto(event)" class="space-y-4">
                             <div>
@@ -313,29 +337,34 @@
                             <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Guardar Producto</button>
                         </form>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                        <h3 class="font-bold text-lg mb-4 text-indigo-600">Auditoría Lateral del Sistema</h3>
-                        <div id="admin-log-container" class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-64 overflow-y-auto text-xs font-mono text-slate-700">
-                            Cargando registros de auditoría...
+                `;
+            } else if (tab === 'auditorias') {
+                area.innerHTML = `
+                    <div class="space-y-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h3 class="font-bold text-lg mb-3 text-indigo-600">Auditoría Lateral del Sistema</h3>
+                            <div id="admin-log-container" class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-40 overflow-y-auto text-xs font-mono text-slate-700">
+                                Cargando registros de auditoría...
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h3 class="text-xl font-bold mb-4 text-slate-900">Auditoría Global de Órdenes y T&C</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <input type="text" id="adm-search" placeholder="Buscar por orden, teléfono o cliente..." class="border border-slate-300 p-2.5 rounded-xl text-sm" oninput="cargarAuditoriaAdmin()">
+                                <select id="adm-filtro-comercio" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarAuditoriaAdmin()">
+                                    <option value="">Todos los Comercios</option>
+                                    <option value="negocio.01@gmail.com">negocio.01@gmail.com</option>
+                                    <option value="negocio.02@gmail.com">negocio.02@gmail.com</option>
+                                </select>
+                                <input type="date" id="adm-filtro-fecha" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarAuditoriaAdmin()">
+                            </div>
+                            <div id="adm-tabla-auditoria" class="overflow-x-auto"><p class="text-slate-400">Cargando órdenes...</p></div>
                         </div>
                     </div>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 class="text-xl font-bold mb-4 text-slate-900">Auditoría Global de Órdenes y T&C</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <input type="text" id="adm-search" placeholder="Buscar por orden, teléfono o cliente..." class="border border-slate-300 p-2.5 rounded-xl text-sm" oninput="cargarAuditoriaAdmin()">
-                        <select id="adm-filtro-comercio" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarAuditoriaAdmin()">
-                            <option value="">Todos los Comercios</option>
-                            <option value="negocio.01@gmail.com">negocio.01@gmail.com</option>
-                            <option value="negocio.02@gmail.com">negocio.02@gmail.com</option>
-                        </select>
-                        <input type="date" id="adm-filtro-fecha" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarAuditoriaAdmin()">
-                    </div>
-                    <div id="adm-tabla-auditoria" class="overflow-x-auto"><p class="text-slate-400">Cargando órdenes...</p></div>
-                </div>
-            `;
-            cargarAuditoriaAdmin();
-            cargarLogAuditoriaAdmin();
+                `;
+                cargarAuditoriaAdmin();
+                cargarLogAuditoriaAdmin();
+            }
         }
 
         async function adminGuardarProducto(e) {
@@ -356,15 +385,17 @@
         }
 
         async function cargarAuditoriaAdmin() {
-            const busqueda = document.getElementById('adm-search').value.toLowerCase();
-            const comercioFiltro = document.getElementById('adm-filtro-comercio').value;
-            const fechaFiltro = document.getElementById('adm-filtro-fecha').value;
+            const busqueda = document.getElementById('adm-search')?.value.toLowerCase() || '';
+            const comercioFiltro = document.getElementById('adm-filtro-comercio')?.value || '';
+            const fechaFiltro = document.getElementById('adm-filtro-fecha')?.value || '';
 
             let query = supabaseClient.from('pedidos_marketplace').select('*').order('fecha_creacion', { ascending: false });
             if (comercioFiltro) query = query.eq('comercio_email', comercioFiltro);
 
             const { data } = await query;
             const container = document.getElementById('adm-tabla-auditoria');
+            if (!container) return;
+
             if (!data || data.length === 0) {
                 container.innerHTML = `<p class="text-slate-500">No hay órdenes registradas.</p>`;
                 return;
@@ -415,6 +446,7 @@
 
         async function cargarLogAuditoriaAdmin() {
             const container = document.getElementById('admin-log-container');
+            if (!container) return;
             const { data } = await supabaseClient.from('vendedores_comercio').select('*');
             container.innerHTML = `
                 [SISTEMA ACTIVO] Conexión establecida con Supabase.<br>
@@ -526,6 +558,7 @@
         async function cargarCatalogoDueno() {
             const { data } = await supabaseClient.from('productos_marketplace').select('*').eq('comercio_email', usuarioActual.email);
             const container = document.getElementById('catalogo-stock-container');
+            if (!container) return;
             if (!data || data.length === 0) {
                 container.innerHTML = `<p class="text-slate-500">No hay productos en tu inventario.</p>`;
                 return;
@@ -569,11 +602,12 @@
         }
 
         async function cargarOrdenesDueno() {
-            const busqueda = document.getElementById('dueno-search').value.toLowerCase();
-            const fechaFiltro = document.getElementById('dueno-fecha').value;
+            const busqueda = document.getElementById('dueno-search')?.value.toLowerCase() || '';
+            const fechaFiltro = document.getElementById('dueno-fecha')?.value || '';
 
             const { data } = await supabaseClient.from('pedidos_marketplace').select('*').eq('comercio_email', usuarioActual.email).order('fecha_creacion', { ascending: false });
             const container = document.getElementById('lista-ordenes-dueno');
+            if (!container) return;
             if (!data || data.length === 0) {
                 container.innerHTML = `<p class="text-slate-500">No hay órdenes registradas.</p>`;
                 return;
@@ -627,6 +661,7 @@
         async function cargarVendedoresDueno() {
             const { data } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio_email', usuarioActual.email);
             const container = document.getElementById('lista-vendedores-container');
+            if (!container) return;
             if (!data || data.length === 0) {
                 container.innerHTML = `<p class="text-slate-500">No hay vendedores registrados.</p>`;
                 return;
@@ -701,12 +736,18 @@
             let noConcretado = pedidos.filter(p => p.estatus === 'No Concretado').length;
             let ingresos = pedidos.filter(p => p.estatus === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
 
-            document.getElementById('stat-efectivas').innerText = efectivas;
-            document.getElementById('stat-proceso').innerText = proceso;
-            document.getElementById('stat-noconcretado').innerText = noConcretado;
-            document.getElementById('stat-ingresos').innerText = `$${ingresos.toFixed(2)}`;
+            const elEfectivas = document.getElementById('stat-efectivas');
+            const elProceso = document.getElementById('stat-proceso');
+            const elNoConcretado = document.getElementById('stat-noconcretado');
+            const elIngresos = document.getElementById('stat-ingresos');
+
+            if (elEfectivas) elEfectivas.innerText = efectivas;
+            if (elProceso) elProceso.innerText = proceso;
+            if (elNoConcretado) elNoConcretado.innerText = noConcretado;
+            if (elIngresos) elIngresos.innerText = `$${ingresos.toFixed(2)}`;
 
             const detalleContainer = document.getElementById('estadisticas-vendedores-detalle');
+            if (!detalleContainer) return;
             if (!vendedores || vendedores.length === 0) {
                 detalleContainer.innerHTML = `<p class="text-slate-500">No hay vendedores registrados para calcular rendimiento.</p>`;
                 return;
@@ -760,11 +801,12 @@
         }
 
         async function cargarOrdenesVendedor() {
-            const busqueda = document.getElementById('vendedor-search').value.toLowerCase();
-            const fechaFiltro = document.getElementById('vendedor-fecha').value;
+            const busqueda = document.getElementById('vendedor-search')?.value.toLowerCase() || '';
+            const fechaFiltro = document.getElementById('vendedor-fecha')?.value || '';
 
             const { data } = await supabaseClient.from('pedidos_marketplace').select('*').eq('vendedor_email', usuarioActual.email).order('fecha_creacion', { ascending: false });
             const container = document.getElementById('lista-ordenes-vendedor');
+            if (!container) return;
             if (!data || data.length === 0) {
                 container.innerHTML = `<p class="text-slate-500">No tienes órdenes asignadas actualmente.</p>`;
                 return;
