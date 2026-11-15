@@ -114,13 +114,11 @@
         }
 
         async function determinarRolYDireccionar(email) {
-            // Buscamos en la tabla vendedores_comercio
             const { data } = await supabaseClient.from('vendedores_comercio').select('*').eq('email', email).maybeSingle();
             
             if (data) {
                 datosSesionRol = data;
             } else {
-                // Fallback por defecto si no está en la tabla pero es admin conocido
                 if (email === 'elio.ravelo19@gmail.com') {
                     datosSesionRol = { rol: 'Administrador', comercio: 'Global', email: email };
                 } else if (email.startsWith('negocio.')) {
@@ -281,11 +279,11 @@
 
             const comercioEmail = carrito[0].comercio_email || 'negocio.01@gmail.com';
             
-            // Buscar vendedores activos para este comercio
             const { data: vendedores } = await supabaseClient
                 .from('vendedores_comercio')
                 .select('*')
                 .eq('comercio', comercioEmail)
+                .eq('rol', 'Vendedor')
                 .eq('activo', true);
 
             let vendedorAsignado = null;
@@ -558,24 +556,29 @@
 
         function abrirModalNuevoUsuario(comercioSugerido = '') {
             document.getElementById('usuario-edit-id').value = '';
-            document.getElementById('modal-usuario-titulo').innerText = 'Registrar Nuevo Usuario';
-            document.getElementById('modal-rol').value = comercioSugerido ? 'Vendedor' : 'Vendedor';
-            document.getElementById('modal-comercio').value = comercioSugerido || '';
+            document.getElementById('modal-usuario-titulo').innerText = 'Registrar Nuevo Vendedor';
+            document.getElementById('modal-rol').value = 'Vendedor';
+            
+            const inputComercio = document.getElementById('modal-comercio');
+            const contenedorRol = document.getElementById('contenedor-rol-select');
+
+            if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
+                const comercioDueño = datosSesionRol.comercio || datosSesionRol.email;
+                inputComercio.value = comercioDueño;
+                inputComercio.readOnly = true;
+                inputComercio.classList.add('bg-slate-700', 'text-slate-400', 'cursor-not-allowed');
+                contenedorRol.style.display = 'none';
+            } else {
+                inputComercio.value = comercioSugerido || '';
+                inputComercio.readOnly = false;
+                inputComercio.classList.remove('bg-slate-700', 'text-slate-400', 'cursor-not-allowed');
+                contenedorRol.style.display = 'block';
+            }
+
             document.getElementById('modal-nombre').value = '';
             document.getElementById('modal-email').value = '';
             document.getElementById('modal-telefono').value = '';
             
-            // Si es dueño llamando a crear vendedor, ocultamos o fijamos el rol
-            if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
-                document.getElementById('modal-comercio').value = datosSesionRol.comercio || datosSesionRol.email;
-                document.getElementById('modal-comercio').readOnly = true;
-                document.getElementById('modal-rol').value = 'Vendedor';
-                document.getElementById('contenedor-rol-select').style.display = 'none';
-            } else {
-                document.getElementById('modal-comercio').readOnly = false;
-                document.getElementById('contenedor-rol-select').style.display = 'block';
-            }
-
             onCambioRolModal();
             document.getElementById('modal-usuario-crm').classList.remove('hidden');
         }
@@ -584,19 +587,26 @@
             document.getElementById('usuario-edit-id').value = id;
             document.getElementById('modal-usuario-titulo').innerText = 'Modificar Usuario';
             document.getElementById('modal-rol').value = rol || 'Vendedor';
-            document.getElementById('modal-comercio').value = comercio || '';
+            
+            const inputComercio = document.getElementById('modal-comercio');
+            const contenedorRol = document.getElementById('contenedor-rol-select');
+
+            inputComercio.value = comercio || '';
+
+            if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
+                inputComercio.readOnly = true;
+                inputComercio.classList.add('bg-slate-700', 'text-slate-400', 'cursor-not-allowed');
+                contenedorRol.style.display = 'none';
+            } else {
+                inputComercio.readOnly = false;
+                inputComercio.classList.remove('bg-slate-700', 'text-slate-400', 'cursor-not-allowed');
+                contenedorRol.style.display = 'block';
+            }
+
             document.getElementById('modal-nombre').value = nombre || '';
             document.getElementById('modal-email').value = email || '';
             document.getElementById('modal-telefono').value = telefono || '';
-
-            if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
-                document.getElementById('modal-comercio').readOnly = true;
-                document.getElementById('contenedor-rol-select').style.display = 'none';
-            } else {
-                document.getElementById('modal-comercio').readOnly = false;
-                document.getElementById('contenedor-rol-select').style.display = 'block';
-            }
-
+            
             onCambioRolModal();
             document.getElementById('modal-usuario-crm').classList.remove('hidden');
         }
@@ -869,7 +879,13 @@
 
         async function cargarVendedoresPanelDueno() {
             const comercioId = datosSesionRol.comercio || datosSesionRol.email;
-            const { data } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio', comercioId);
+            // Solo filtramos los usuarios con rol 'Vendedor' que pertenecen a este comercio
+            const { data } = await supabaseClient
+                .from('vendedores_comercio')
+                .select('*')
+                .eq('comercio', comercioId)
+                .eq('rol', 'Vendedor');
+
             const container = document.getElementById('lista-vendedores-dueno-container');
             if (!container) return;
 
@@ -986,7 +1002,6 @@
             document.getElementById('stat-abiertas').innerText = ventasAbiertas;
             document.getElementById('stat-cerradas').innerText = ventasCerradas;
 
-            // Detectar órdenes sin asignar o con vendedores ocupados/sin asignar
             const ordenesSinAsignar = pedidos.filter(p => !p.vendedor_email || p.vendedor_email === 'Sin asignar');
             const alertaBox = document.getElementById('alerta-ordenes-pendientes');
             const tablaPendientes = document.getElementById('tabla-ordenes-pendientes-asignar');
@@ -1021,7 +1036,6 @@
                 alertaBox.classList.add('hidden');
             }
 
-            // Filtrar y renderizar listado principal
             const busqueda = document.getElementById('dueno-search')?.value.toLowerCase() || '';
             const fechaFiltro = document.getElementById('dueno-fecha')?.value || '';
             const container = document.getElementById('lista-ordenes-estadisticas');
@@ -1078,7 +1092,7 @@
 
         async function asignarVendedorOrdenModal(idOrden) {
             const comercioId = datosSesionRol.comercio || datosSesionRol.email;
-            const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio', comercioId).eq('activo', true);
+            const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio', comercioId).eq('rol', 'Vendedor').eq('activo', true);
             if (!vendedores || vendedores.length === 0) {
                 alert('No tienes vendedores activos para asignar. Por favor activa un vendedor primero.');
                 return;
