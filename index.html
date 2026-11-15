@@ -69,15 +69,15 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Comercio Afiliado / Asignación</label>
-                    <input type="text" id="modal-comercio" required placeholder="Ej. negocio.01@gmail.com o Global" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="text" id="modal-comercio" required placeholder="Ej. polar, negocio.01@gmail.com o Global" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Nombre Completo</label>
-                    <input type="text" id="modal-nombre" required placeholder="Ej. Marcos Pérez" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="text" id="modal-nombre" required placeholder="Ej. Antonio Molina" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Correo Electrónico</label>
-                    <input type="email" id="modal-email" required placeholder="Ej. usuario@gmail.com" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="email" id="modal-email" required placeholder="Ej. antonio.01@gmail.com" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div id="grupo-telefono">
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Número de Teléfono / WhatsApp (Requerido para Vendedor)</label>
@@ -173,7 +173,7 @@
             grid.innerHTML = data.map(p => {
                 const nombreProd = p.nombre || p.titulo || p.nombre_producto || 'Producto sin nombre';
                 const descProd = p.descripcion || p.detalle || 'Sin descripción disponible';
-                const comercioProd = p.comercio_email || p.comercio || 'Comercio General';
+                const comercioProd = p.comercio_email || p.comercio || p.dueno_email || 'Comercio General';
                 const precioProd = p.precio || p.costo || 0;
                 const stockProd = p.stock !== undefined ? p.stock : (p.cantidad_stock || 0);
 
@@ -325,7 +325,7 @@
             }
         }
 
-        // --- PANEL DE ADMINISTRADOR (CON SIDEBAR Y SEGURIDAD Y USUARIOS) ---
+        // --- PANEL DE ADMINISTRADOR ---
         function renderizarPanelAdmin() {
             const main = document.getElementById('main-content');
             main.innerHTML = `
@@ -334,14 +334,12 @@
                     <p class="text-slate-500 text-sm">Control central del sistema</p>
                 </div>
                 <div class="flex flex-col md:flex-row gap-6">
-                    <!-- Sidebar de Admin -->
                     <div class="w-full md:w-64 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col space-y-2 h-fit">
                         <h3 class="font-bold text-slate-900 text-sm uppercase px-2 tracking-wider text-slate-400 mb-1">Navegación</h3>
                         <button onclick="cambiarTabAdmin('panel')" id="btn-admin-panel" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-indigo-600 text-white transition shadow-sm">Panel del Administrador</button>
                         <button onclick="cambiarTabAdmin('auditorias')" id="btn-admin-auditorias" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Auditorías</button>
                         <button onclick="cambiarTabAdmin('usuarios')" id="btn-admin-usuarios" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Seguridad y Usuarios</button>
                     </div>
-                    <!-- Contenido dinámico del Admin -->
                     <div class="flex-1" id="admin-content-area"></div>
                 </div>
             `;
@@ -408,7 +406,6 @@
             } else if (tab === 'usuarios') {
                 area.innerHTML = `
                     <div class="space-y-6">
-                        <!-- Tarjetas de Conteo por Rol -->
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                                 <p class="text-slate-500 text-sm">Administradores</p>
@@ -423,8 +420,6 @@
                                 <h4 class="text-2xl font-bold text-amber-600" id="count-vendedores">0</h4>
                             </div>
                         </div>
-
-                        <!-- Gestión y Listado de Usuarios -->
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-xl font-bold text-slate-900">Gestión de Usuarios y Roles</h3>
@@ -456,7 +451,7 @@
                         nombre: v.nombre,
                         email: v.email,
                         rol: v.rol || 'Vendedor',
-                        comercio: v.comercio_email || v.comercio || 'Sin comercio',
+                        comercio: v.comercio || v.dueno_email || v.comercio_email || 'Sin comercio',
                         telefono: v.telefono || 'N/A',
                         activo: v.activo
                     });
@@ -502,7 +497,7 @@
             `;
         }
 
-        // --- FUNCIONES DEL MODAL CRM DINÁMICO PARA USUARIOS ---
+        // --- FUNCIONES DEL MODAL CRM DINÁMICO ---
         function onCambioRolModal() {
             const rol = document.getElementById('modal-rol').value;
             const grupoTel = document.getElementById('grupo-telefono');
@@ -555,6 +550,7 @@
             const telefono = document.getElementById('modal-telefono').value.trim() || 'N/A';
 
             const datosUsuario = {
+                dueno_email: comercio,
                 comercio_email: comercio,
                 comercio: comercio,
                 nombre: nombre,
@@ -922,7 +918,7 @@
             const email = document.getElementById('vendedor-email').value.trim();
             const telefono = document.getElementById('vendedor-tel').value.trim();
 
-            const datos = { comercio_email: usuarioActual.email, comercio: usuarioActual.email, nombre, email, telefono, rol: 'Vendedor', activo: true };
+            const datos = { comercio_email: usuarioActual.email, comercio: usuarioActual.email, dueno_email: usuarioActual.email, nombre, email, telefono, rol: 'Vendedor', activo: true };
 
             if (id) {
                 await supabaseClient.from('vendedores_comercio').update(datos).eq('id', id);
