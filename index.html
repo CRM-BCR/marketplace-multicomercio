@@ -99,6 +99,7 @@
         let carrito = [];
         let usuarioActual = null;
         let datosSesionRol = null;
+        let cacheCatalogoDueno = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             verTiendaPublica();
@@ -411,40 +412,47 @@
             const area = document.getElementById('admin-content-area');
             if (tab === 'panel') {
                 area.innerHTML = `
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-xl">
-                        <h3 class="font-bold text-lg mb-4 text-indigo-600">Cargar Producto al Comercio</h3>
-                        <form onsubmit="adminGuardarProducto(event)" class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Comercio Destino</label>
-                                <select id="adm-comercio" required class="w-full mt-1 border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                                    <option value="">Cargando comercios...</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Nombre del Producto</label>
-                                <input type="text" id="adm-nombre" placeholder="Ej. Camisa Deportiva" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Precio ($)</label>
-                                <input type="number" id="adm-precio" placeholder="0.00" step="0.01" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Stock Inicial</label>
-                                <input type="number" id="adm-stock" placeholder="0" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Adjuntar Imagen del Producto</label>
-                                <input type="file" id="adm-imagen-file" accept="image/*" required class="w-full border border-slate-300 p-2 rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 bg-white">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
-                                <textarea id="adm-desc" placeholder="Detalles del producto..." class="w-full border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
-                            </div>
-                            <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Guardar Producto</button>
-                        </form>
+                    <div class="space-y-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-xl">
+                            <h3 class="font-bold text-lg mb-4 text-indigo-600">Cargar Producto al Comercio</h3>
+                            <form onsubmit="adminGuardarProducto(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Comercio Destino</label>
+                                    <select id="adm-comercio" required class="w-full mt-1 border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                        <option value="">Cargando comercios...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Nombre del Producto</label>
+                                    <input type="text" id="adm-nombre" placeholder="Ej. Camisa Deportiva" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Precio ($)</label>
+                                    <input type="number" id="adm-precio" placeholder="0.00" step="0.01" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Stock Inicial</label>
+                                    <input type="number" id="adm-stock" placeholder="0" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Adjuntar Imagen del Producto</label>
+                                    <input type="file" id="adm-imagen-file" accept="image/*" required class="w-full border border-slate-300 p-2 rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+                                    <textarea id="adm-desc" placeholder="Detalles del producto..." class="w-full border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                                </div>
+                                <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Guardar Producto</button>
+                            </form>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h3 class="font-bold text-lg mb-4 text-slate-900">Listado General de Productos en el Sistema</h3>
+                            <div id="admin-productos-lista" class="overflow-x-auto"><p class="text-slate-400">Cargando productos...</p></div>
+                        </div>
                     </div>
                 `;
                 cargarComerciosSelectAdmin('adm-comercio');
+                cargarProductosAdminGlobal();
             } else if (tab === 'auditorias') {
                 area.innerHTML = `
                     <div class="space-y-6">
@@ -497,6 +505,58 @@
                     </div>
                 `;
                 cargarGestionUsuariosAdmin();
+            }
+        }
+
+        async function cargarProductosAdminGlobal() {
+            const { data } = await supabaseClient.from('productos_marketplace').select('*');
+            const container = document.getElementById('admin-productos-lista');
+            if (!container) return;
+            if (!data || data.length === 0) {
+                container.innerHTML = `<p class="text-slate-500">No hay productos registrados en el sistema.</p>`;
+                return;
+            }
+            container.innerHTML = `
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50">
+                            <th class="p-3">Producto</th>
+                            <th class="p-3">Comercio Asignado</th>
+                            <th class="p-3">Precio</th>
+                            <th class="p-3">Stock</th>
+                            <th class="p-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(p => {
+                            const nombreProd = p.nombre || p.nombre_producto || p.titulo || 'Sin nombre';
+                            const comercioProd = p.comercio_email || p.dueno_email || p.duenio_email || p.comercio || 'N/A';
+                            return `
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-3 font-bold">${nombreProd}</td>
+                                    <td class="p-3 text-indigo-600">${comercioProd}</td>
+                                    <td class="p-3">$${p.precio || 0}</td>
+                                    <td class="p-3">${p.stock !== undefined ? p.stock : 0}</td>
+                                    <td class="p-3">
+                                        <button onclick="eliminarProductoGlobalAdmin('${p.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold hover:bg-rose-700 transition">Eliminar</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function eliminarProductoGlobalAdmin(id) {
+            if (confirm('¿Eliminar este producto del sistema global?')) {
+                const { error } = await supabaseClient.from('productos_marketplace').delete().eq('id', id);
+                if (error) {
+                    alert('Error al eliminar: ' + error.message);
+                } else {
+                    alert('Producto eliminado con éxito.');
+                    cargarProductosAdminGlobal();
+                }
             }
         }
 
@@ -720,11 +780,11 @@
                 reader.onload = async function(uploadEvent) {
                     const imagenBase64 = uploadEvent.target.result;
                     
-                    // Enviamos todas las posibles variantes de nombres de columnas para evitar cualquier conflicto con Supabase
                     const payloadProducto = {
                         comercio_email: comercio_email,
                         dueno_email: comercio_email,
                         duenio_email: comercio_email,
+                        comercio: comercio_email,
                         nombre: nombre,
                         nombre_producto: nombre,
                         precio: precio,
@@ -740,6 +800,7 @@
                     } else {
                         alert('¡Producto guardado correctamente con su imagen!');
                         e.target.reset();
+                        cargarProductosAdminGlobal();
                     }
                 };
                 reader.readAsDataURL(fileInput.files[0]);
@@ -875,7 +936,10 @@
             } else if (tab === 'catalogo') {
                 area.innerHTML = `
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
-                        <h3 class="text-xl font-bold text-slate-900">Mi Catálogo y Control de Stock</h3>
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <h3 class="text-xl font-bold text-slate-900">Mi Catálogo y Control de Stock</h3>
+                            <input type="text" id="catalogo-search" placeholder="Buscar producto por nombre..." class="border border-slate-300 p-2.5 rounded-xl text-sm w-full sm:w-72 focus:ring-2 focus:ring-indigo-500 focus:outline-none" oninput="filtrarCatalogoDueno()">
+                        </div>
                         <div id="catalogo-stock-container"><p class="text-slate-400">Cargando productos...</p></div>
                     </div>
                 `;
@@ -987,25 +1051,54 @@
             }
         }
 
+        // --- CATÁLOGO CON BÚSQUEDA Y FILTRADO ROBUSTO ---
         async function cargarCatalogoDueno() {
-            const comercioId = datosSesionRol.comercio || datosSesionRol.email;
+            const comercioId = (datosSesionRol.comercio || datosSesionRol.email || '').toLowerCase().trim();
             const { data } = await supabaseClient.from('productos_marketplace').select('*');
             const container = document.getElementById('catalogo-stock-container');
             if (!container) return;
             
-            // Filtrar productos del comercio actual
-            const misProductos = data ? data.filter(p => {
-                const c = p.comercio_email || p.dueno_email || p.duenio_email;
-                return c === comercioId;
-            }) : [];
-
-            if (misProductos.length === 0) {
+            if (!data || data.length === 0) {
                 container.innerHTML = `<p class="text-slate-500">No hay productos en tu inventario.</p>`;
+                cacheCatalogoDueno = [];
                 return;
             }
+
+            // Filtrado flexible combinando todas las posibles variantes de columnas de comercio
+            cacheCatalogoDueno = data.filter(p => {
+                const cEmail = (p.comercio_email || '').toLowerCase().trim();
+                const dEmail = (p.dueno_email || '').toLowerCase().trim();
+                const dnEmail = (p.duenio_email || '').toLowerCase().trim();
+                const com = (p.comercio || '').toLowerCase().trim();
+                
+                return cEmail === comercioId || dEmail === comercioId || dnEmail === comercioId || com === comercioId;
+            });
+
+            renderizarListaCatalogoDueno(cacheCatalogoDueno);
+        }
+
+        function filtrarCatalogoDueno() {
+            const busqueda = document.getElementById('catalogo-search')?.value.toLowerCase().trim() || '';
+            const filtrados = cacheCatalogoDueno.filter(p => {
+                const nombreProd = (p.nombre || p.nombre_producto || p.titulo || '').toLowerCase();
+                const descProd = (p.descripcion || '').toLowerCase();
+                return nombreProd.includes(busqueda) || descProd.includes(busqueda);
+            });
+            renderizarListaCatalogoDueno(filtrados);
+        }
+
+        function renderizarListaCatalogoDueno(productos) {
+            const container = document.getElementById('catalogo-stock-container');
+            if (!container) return;
+
+            if (productos.length === 0) {
+                container.innerHTML = `<p class="text-slate-500 py-4">No se encontraron productos con ese criterio.</p>`;
+                return;
+            }
+
             container.innerHTML = `
                 <div class="space-y-3">
-                    ${misProductos.map(p => {
+                    ${productos.map(p => {
                         const nombreProd = p.nombre || p.nombre_producto || p.titulo || 'Producto';
                         const precioProd = p.precio || p.costo || 0;
                         const stockProd = p.stock !== undefined ? p.stock : 0;
@@ -1019,9 +1112,12 @@
                                         <p class="text-xs text-slate-500">Precio: $${precioProd} | Stock actual: <span class="font-bold text-indigo-600">${stockProd}</span></p>
                                     </div>
                                 </div>
-                                <div class="flex items-center space-x-2 w-full sm:w-auto">
-                                    <input type="number" id="input-stock-${p.id}" value="${stockProd}" class="w-24 border border-slate-300 p-1.5 rounded-lg text-sm bg-white">
-                                    <button onclick="actualizarStockDueno('${p.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Guardar Stock</button>
+                                <div class="flex items-center space-x-3 w-full sm:w-auto">
+                                    <div class="flex items-center space-x-2">
+                                        <input type="number" id="input-stock-${p.id}" value="${stockProd}" class="w-20 border border-slate-300 p-1.5 rounded-lg text-sm bg-white">
+                                        <button onclick="actualizarStockDueno('${p.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Guardar Stock</button>
+                                    </div>
+                                    <button onclick="eliminarProductoDueno('${p.id}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:bg-rose-700 transition">Eliminar</button>
                                 </div>
                             </div>
                         `;
@@ -1035,6 +1131,18 @@
             await supabaseClient.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', id);
             alert('Stock actualizado con éxito');
             cargarCatalogoDueno();
+        }
+
+        async function eliminarProductoDueno(id) {
+            if (confirm('¿Estás seguro de eliminar este producto de tu catálogo?')) {
+                const { error } = await supabaseClient.from('productos_marketplace').delete().eq('id', id);
+                if (error) {
+                    alert('Error al eliminar el producto: ' + error.message);
+                } else {
+                    alert('Producto eliminado con éxito.');
+                    cargarCatalogoDueno();
+                }
+            }
         }
 
         let filtroVentasActual = 'todas';
