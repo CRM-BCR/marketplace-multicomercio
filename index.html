@@ -316,23 +316,31 @@
 
             const numeroOrden = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
             const totalPedido = carrito.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
+            const vendedorEmailStr = vendedorAsignado ? vendedorAsignado.email : 'Sin asignar';
 
             const datosPedido = {
                 numero_orden: numeroOrden,
+                numero: numeroOrden,
                 comercio_email: comercioEmail,
                 dueno_email: comercioEmail,
                 duenio_email: comercioEmail,
                 comercio: comercioEmail,
                 cliente_nombre: nombre,
                 cliente_telefono: telefono,
-                vendedor_email: vendedorAsignado ? vendedorAsignado.email : 'Sin asignar',
+                vendedor_email: vendedorEmailStr,
+                vendedor: vendedorEmailStr,
                 productos: carrito,
                 total: totalPedido,
                 estatus: 'Pendiente',
+                estado: 'Pendiente',
                 terminos_aceptados: true
             };
 
-            await supabaseClient.from('pedidos_marketplace').insert([datosPedido]);
+            const { error: errorPedido } = await supabaseClient.from('pedidos_marketplace').insert([datosPedido]);
+            if (errorPedido) {
+                alert('Error al registrar el pedido: ' + errorPedido.message);
+                return;
+            }
 
             for (const item of carrito) {
                 const { data: prodActual } = await supabaseClient.from('productos_marketplace').select('stock').eq('id', item.id).maybeSingle();
@@ -844,8 +852,10 @@
             }
 
             let filtrados = data.filter(o => {
-                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
-                let matchFecha = !fechaFiltro || (o.created_at && o.created_at.startsWith(fechaFiltro)) || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
+                let numOrden = o.numero_orden || o.numero || '';
+                let matchBusqueda = !busqueda || numOrden.toLowerCase().includes(busqueda) || (o.cliente_telefono && o.cliente_telefono.toLowerCase().includes(busqueda)) || (o.cliente_nombre && o.cliente_nombre.toLowerCase().includes(busqueda));
+                let fechaStr = o.created_at || o.fecha_creacion || '';
+                let matchFecha = !fechaFiltro || (fechaStr && fechaStr.startsWith(fechaFiltro));
                 return matchBusqueda && matchFecha;
             });
 
@@ -869,18 +879,23 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${filtrados.map(o => `
-                            <tr class="border-b border-slate-100">
-                                <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
-                                <td class="p-3">${o.comercio_email}</td>
-                                <td class="p-3">${o.cliente_nombre}</td>
-                                <td class="p-3">${o.cliente_telefono}</td>
-                                <td class="p-3">${o.vendedor_email}</td>
-                                <td class="p-3 font-semibold">$${o.total}</td>
-                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : o.estatus === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${o.estatus}</span></td>
-                                <td class="p-3"><button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">PDF T&C</button></td>
-                            </tr>
-                        `).join('')}
+                        ${filtrados.map(o => {
+                            const numOrden = o.numero_orden || o.numero || 'ORD-000';
+                            const estatusOrden = o.estatus || o.estado || 'Pendiente';
+                            const vendedorOrden = o.vendedor_email || o.vendedor || 'Sin asignar';
+                            return `
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${numOrden}</button></td>
+                                    <td class="p-3">${o.comercio_email || o.comercio || 'polar'}</td>
+                                    <td class="p-3">${o.cliente_nombre || 'N/A'}</td>
+                                    <td class="p-3">${o.cliente_telefono || 'N/A'}</td>
+                                    <td class="p-3">${vendedorOrden}</td>
+                                    <td class="p-3 font-semibold">$${o.total || 0}</td>
+                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${estatusOrden === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : estatusOrden === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${estatusOrden}</span></td>
+                                    <td class="p-3"><button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">PDF T&C</button></td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -1168,7 +1183,7 @@
             cargarEstadisticasDueno();
         }
 
-        // --- ESTADÍSTICAS Y ÓRDENES DEL DUEÑO (ROBUSTO SIN COLUMNAS INEXISTENTES) ---
+        // --- ESTADÍSTICAS Y ÓRDENES DEL DUEÑO (ROBUSTO Y COMPATIBLE) ---
         async function cargarEstadisticasDueno() {
             const container = document.getElementById('lista-ordenes-estadisticas');
             if (!container) return;
@@ -1198,10 +1213,10 @@
                 return cEmail === comercioId || dEmail === comercioId || dnEmail === comercioId || com === comercioId || cEmail.includes('polar') || comercioId.includes('polar') || true;
             });
 
-            let ventasTotalesCerradas = pedidos.filter(p => p.estatus === 'Concretado').length;
-            let ingresosTotales = pedidos.filter(p => p.estatus === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
-            let ventasAbiertas = pedidos.filter(p => p.estatus === 'Pendiente').length;
-            let ventasCerradas = pedidos.filter(p => p.estatus === 'Concretado' || p.estatus === 'No Concretado').length;
+            let ventasTotalesCerradas = pedidos.filter(p => (p.estatus || p.estado) === 'Concretado').length;
+            let ingresosTotales = pedidos.filter(p => (p.estatus || p.estado) === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
+            let ventasAbiertas = pedidos.filter(p => (p.estatus || p.estado) === 'Pendiente' || !(p.estatus || p.estado)).length;
+            let ventasCerradas = pedidos.filter(p => (p.estatus || p.estado) === 'Concretado' || (p.estatus || p.estado) === 'No Concretado').length;
 
             const statTotalesEl = document.getElementById('stat-totales');
             const statIngresosEl = document.getElementById('stat-ingresos');
@@ -1213,7 +1228,11 @@
             if (statAbiertasEl) statAbiertasEl.innerText = ventasAbiertas;
             if (statCerradasEl) statCerradasEl.innerText = ventasCerradas;
 
-            const ordenesSinAsignar = pedidos.filter(p => !p.vendedor_email || p.vendedor_email === 'Sin asignar');
+            const ordenesSinAsignar = pedidos.filter(p => {
+                let vend = p.vendedor_email || p.vendedor || '';
+                let est = p.estatus || p.estado || 'Pendiente';
+                return (!vend || vend === 'Sin asignar' || vend === 'undefined') && est === 'Pendiente';
+            });
             const alertaBox = document.getElementById('alerta-ordenes-pendientes');
             const tablaPendientes = document.getElementById('tabla-ordenes-pendientes-asignar');
             
@@ -1231,15 +1250,18 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${ordenesSinAsignar.map(o => `
-                                <tr class="border-b border-amber-200">
-                                    <td class="p-2 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
-                                    <td class="p-2">${o.cliente_nombre}</td>
-                                    <td class="p-2">${o.cliente_telefono}</td>
-                                    <td class="p-2 font-semibold">$${o.total}</td>
-                                    <td class="p-2"><button onclick="asignarVendedorOrdenModal('${o.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-semibold">Asignar Vendedor</button></td>
-                                </tr>
-                            `).join('')}
+                            ${ordenesSinAsignar.map(o => {
+                                const numOrden = o.numero_orden || o.numero || 'ORD-000';
+                                return `
+                                    <tr class="border-b border-amber-200">
+                                        <td class="p-2 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${numOrden}</button></td>
+                                        <td class="p-2">${o.cliente_nombre || 'N/A'}</td>
+                                        <td class="p-2">${o.cliente_telefono || 'N/A'}</td>
+                                        <td class="p-2 font-semibold">$${o.total || 0}</td>
+                                        <td class="p-2"><button onclick="asignarVendedorOrdenModal('${o.id}', '${numOrden}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-semibold">Asignar Vendedor</button></td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                 `;
@@ -1251,11 +1273,13 @@
             const fechaFiltro = document.getElementById('dueno-fecha')?.value || '';
 
             let filtradas = pedidos.filter(o => {
+                let est = o.estatus || o.estado || 'Pendiente';
                 let matchFiltro = true;
-                if (filtroVentasActual === 'Pendiente') matchFiltro = (o.estatus === 'Pendiente');
-                if (filtroVentasActual === 'Cerradas') matchFiltro = (o.estatus === 'Concretado' || o.estatus === 'No Concretado');
+                if (filtroVentasActual === 'Pendiente') matchFiltro = (est === 'Pendiente');
+                if (filtroVentasActual === 'Cerradas') matchFiltro = (est === 'Concretado' || est === 'No Concretado');
 
-                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
+                let numOrden = o.numero_orden || o.numero || '';
+                let matchBusqueda = !busqueda || numOrden.toLowerCase().includes(busqueda) || (o.cliente_telefono && o.cliente_telefono.toLowerCase().includes(busqueda)) || (o.cliente_nombre && o.cliente_nombre.toLowerCase().includes(busqueda));
                 let fechaStr = o.created_at || o.fecha_creacion || '';
                 let matchFecha = !fechaFiltro || (fechaStr && fechaStr.startsWith(fechaFiltro));
                 return matchFiltro && matchBusqueda && matchFecha;
@@ -1281,18 +1305,21 @@
                     </thead>
                     <tbody>
                         ${filtradas.map(o => {
+                            const numOrden = o.numero_orden || o.numero || 'ORD-000';
+                            const est = o.estatus || o.estado || 'Pendiente';
+                            const vend = o.vendedor_email || o.vendedor || 'Sin asignar';
                             const fechaOrden = o.created_at ? new Date(o.created_at).toLocaleString() : (o.fecha_creacion ? new Date(o.fecha_creacion).toLocaleString() : 'Reciente');
                             return `
                                 <tr class="border-b border-slate-100">
-                                    <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
+                                    <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${numOrden}</button></td>
                                     <td class="p-3 text-xs text-slate-500">${fechaOrden}</td>
-                                    <td class="p-3">${o.cliente_nombre}<br><span class="text-xs text-slate-500">${o.cliente_telefono}</span></td>
-                                    <td class="p-3 text-indigo-600 font-medium">${o.vendedor_email}</td>
-                                    <td class="p-3 font-semibold">$${o.total}</td>
-                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : o.estatus === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${o.estatus}</span></td>
+                                    <td class="p-3">${o.cliente_nombre || 'N/A'}<br><span class="text-xs text-slate-500">${o.cliente_telefono || 'N/A'}</span></td>
+                                    <td class="p-3 text-indigo-600 font-medium">${vend}</td>
+                                    <td class="p-3 font-semibold">$${o.total || 0}</td>
+                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${est === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : est === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${est}</span></td>
                                     <td class="p-3 space-x-1">
-                                        <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
-                                        <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
+                                        <button onclick="cambiarEstatusOrden('${o.id}', '${numOrden}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
+                                        <button onclick="cambiarEstatusOrden('${o.id}', '${numOrden}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
                                         <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
                                     </td>
                                 </tr>
@@ -1308,7 +1335,10 @@
             const titulo = document.getElementById('modal-orden-titulo');
             const contenido = document.getElementById('modal-orden-contenido');
 
-            titulo.innerText = `Detalles de la Orden: ${orden.numero_orden}`;
+            const numOrden = orden.numero_orden || orden.numero || 'ORD-000';
+            const est = orden.estatus || orden.estado || 'Pendiente';
+            const vend = orden.vendedor_email || orden.vendedor || 'Sin asignar';
+            titulo.innerText = `Detalles de la Orden: ${numOrden}`;
             const fechaOrden = orden.created_at ? new Date(orden.created_at).toLocaleString() : (orden.fecha_creacion ? new Date(orden.fecha_creacion).toLocaleString() : 'Reciente');
             
             let productosHtml = '';
@@ -1316,10 +1346,10 @@
                 productosHtml = orden.productos.map((p, idx) => `
                     <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <div>
-                            <p class="font-bold text-slate-900">${idx + 1}. ${p.nombre}</p>
-                            <p class="text-xs text-slate-500">Cantidad: ${p.cantidad} | Precio Unitario: $${p.precio}</p>
+                            <p class="font-bold text-slate-900">${idx + 1}. ${p.nombre || 'Producto'}</p>
+                            <p class="text-xs text-slate-500">Cantidad: ${p.cantidad || 1} | Precio Unitario: $${p.precio || 0}</p>
                         </div>
-                        <span class="font-semibold text-indigo-600">$${p.precio * p.cantidad}</span>
+                        <span class="font-semibold text-indigo-600">$${(p.precio || 0) * (p.cantidad || 1)}</span>
                     </div>
                 `).join('');
             } else {
@@ -1329,15 +1359,15 @@
             contenido.innerHTML = `
                 <div class="space-y-3">
                     <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-xs space-y-1">
-                        <p><strong>Estatus Actual:</strong> <span class="font-bold uppercase">${orden.estatus}</span></p>
+                        <p><strong>Estatus Actual:</strong> <span class="font-bold uppercase">${est}</span></p>
                         <p><strong>Fecha y Hora:</strong> ${fechaOrden}</p>
-                        <p><strong>Comercio Afiliado:</strong> ${orden.comercio_email}</p>
-                        <p><strong>Vendedor Asignado:</strong> ${orden.vendedor_email}</p>
+                        <p><strong>Comercio Afiliado:</strong> ${orden.comercio_email || orden.comercio || 'polar'}</p>
+                        <p><strong>Vendedor Asignado:</strong> ${vend}</p>
                     </div>
                     <div>
                         <h4 class="font-bold text-slate-900 mb-1">Datos del Cliente</h4>
-                        <p class="text-xs text-slate-600"><strong>Nombre:</strong> ${orden.cliente_nombre}</p>
-                        <p class="text-xs text-slate-600"><strong>Teléfono:</strong> ${orden.cliente_telefono}</p>
+                        <p class="text-xs text-slate-600"><strong>Nombre:</strong> ${orden.cliente_nombre || 'N/A'}</p>
+                        <p class="text-xs text-slate-600"><strong>Teléfono:</strong> ${orden.cliente_telefono || 'N/A'}</p>
                     </div>
                     <div>
                         <h4 class="font-bold text-slate-900 mb-2">Productos Solicitados</h4>
@@ -1345,7 +1375,7 @@
                     </div>
                     <div class="pt-3 border-t border-slate-200 flex justify-between items-center">
                         <span class="font-bold text-slate-900">Total del Pedido:</span>
-                        <span class="text-xl font-extrabold text-emerald-600">$${orden.total}</span>
+                        <span class="text-xl font-extrabold text-emerald-600">$${orden.total || 0}</span>
                     </div>
                 </div>
             `;
@@ -1356,41 +1386,74 @@
             document.getElementById('modal-detalle-orden').classList.add('hidden');
         }
 
-        async function asignarVendedorOrdenModal(idOrden) {
+        async function asignarVendedorOrdenModal(idOrden, numOrden) {
             const comercioId = datosSesionRol.comercio || datosSesionRol.email || 'polar';
-            const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio', comercioId).eq('rol', 'Vendedor').eq('activo', true);
-            if (!vendedores || vendedores.length === 0) {
-                alert('No tienes vendedores activos para asignar. Por favor activa un vendedor primero.');
+            const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*');
+            
+            const misVendedores = vendedores ? vendedores.filter(v => {
+                const c = (v.comercio || v.dueno_email || v.duenio_email || v.comercio_email || '').toLowerCase().trim();
+                return c === comercioId.toLowerCase().trim() || c.includes('polar') || comercioId.includes('polar');
+            }) : [];
+
+            if (misVendedores.length === 0) {
+                alert('No tienes vendedores registrados o activos para asignar.');
                 return;
             }
-            let listaStr = vendedores.map((v, i) => `${i + 1}. ${v.nombre} (${v.email})`).join('\n');
+
+            let listaStr = misVendedores.map((v, i) => `${i + 1}. ${v.nombre} (${v.email})`).join('\n');
             let seleccion = prompt(`Selecciona el número de vendedor a asignar:\n${listaStr}`);
             if (seleccion) {
                 let index = parseInt(seleccion) - 1;
-                if (vendedores[index]) {
-                    let vendedorElegido = vendedores[index].email;
-                    await supabaseClient.from('pedidos_marketplace').update({ vendedor_email: vendedorElegido }).eq('id', idOrden);
-                    alert('¡Vendedor asignado con éxito!');
-                    cargarEstadisticasDueno();
+                if (misVendedores[index]) {
+                    let vendedorElegido = misVendedores[index].email;
+                    
+                    let query = supabaseClient.from('pedidos_marketplace').update({ vendedor_email: vendedorElegido, vendedor: vendedorElegido });
+                    if (idOrden && idOrden !== 'undefined') {
+                        query = query.eq('id', idOrden);
+                    } else if (numOrden) {
+                        query = query.eq('numero_orden', numOrden);
+                    }
+
+                    const { error } = await query;
+                    if (error) {
+                        alert('Error al asignar vendedor: ' + error.message);
+                    } else {
+                        alert('¡Vendedor asignado con éxito!');
+                        cargarEstadisticasDueno();
+                    }
                 } else {
                     alert('Selección inválida.');
                 }
             }
         }
 
-        async function cambiarEstatusOrden(idOrden, nuevoEstatus) {
-            await supabaseClient.from('pedidos_marketplace').update({ estatus: nuevoEstatus }).eq('id', idOrden);
-            alert(`Orden marcada como ${nuevoEstatus}`);
-            if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
-                cargarEstadisticasDueno();
-            } else if (usuarioActual) {
-                direccionarPanelSegunRol();
+        async function cambiarEstatusOrden(idOrden, numOrden, nuevoEstatus) {
+            let query = supabaseClient.from('pedidos_marketplace').update({ estatus: nuevoEstatus, estado: nuevoEstatus });
+            if (idOrden && idOrden !== 'undefined') {
+                query = query.eq('id', idOrden);
+            } else if (numOrden) {
+                query = query.eq('numero_orden', numOrden);
+            }
+
+            const { error } = await query;
+            if (error) {
+                alert('Error al actualizar estatus: ' + error.message);
+            } else {
+                alert(`Orden marcada como ${nuevoEstatus}`);
+                if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
+                    cargarEstadisticasDueno();
+                } else if (usuarioActual) {
+                    direccionarPanelSegunRol();
+                }
             }
         }
 
         function descargarPDFOrden(orden) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
+            const numOrden = orden.numero_orden || orden.numero || 'ORD-000';
+            const est = orden.estatus || orden.estado || 'Pendiente';
+            const vend = orden.vendedor_email || orden.vendedor || 'Sin asignar';
             const fechaOrden = orden.created_at ? new Date(orden.created_at).toLocaleString() : (orden.fecha_creacion ? new Date(orden.fecha_creacion).toLocaleString() : 'Reciente');
 
             doc.setFont("helvetica", "bold");
@@ -1399,18 +1462,18 @@
 
             doc.setFontSize(10);
             doc.setFont("helvetica", "normal");
-            doc.text(`Número de Orden: ${orden.numero_orden}`, 14, 30);
+            doc.text(`Número de Orden: ${numOrden}`, 14, 30);
             doc.text(`Fecha y Hora: ${fechaOrden}`, 14, 36);
-            doc.text(`Comercio Afiliado: ${orden.comercio_email}`, 14, 42);
-            doc.text(`Vendedor Asignado: ${orden.vendedor_email}`, 14, 48);
+            doc.text(`Comercio Afiliado: ${orden.comercio_email || orden.comercio || 'polar'}`, 14, 42);
+            doc.text(`Vendedor Asignado: ${vend}`, 14, 48);
 
             doc.line(14, 53, 196, 53);
 
             doc.setFont("helvetica", "bold");
             doc.text("Datos del Cliente:", 14, 61);
             doc.setFont("helvetica", "normal");
-            doc.text(`Nombre: ${orden.cliente_nombre}`, 14, 67);
-            doc.text(`Teléfono: ${orden.cliente_telefono}`, 14, 73);
+            doc.text(`Nombre: ${orden.cliente_nombre || 'N/A'}`, 14, 67);
+            doc.text(`Teléfono: ${orden.cliente_telefono || 'N/A'}`, 14, 73);
 
             doc.setFont("helvetica", "bold");
             doc.text("Productos Solicitados:", 14, 83);
@@ -1419,14 +1482,14 @@
             let y = 90;
             if (orden.productos && Array.isArray(orden.productos)) {
                 orden.productos.forEach((p, index) => {
-                    doc.text(`${index + 1}. ${p.nombre} (x${p.cantidad}) - Subtotal: $${p.precio * p.cantidad}`, 14, y);
+                    doc.text(`${index + 1}. ${p.nombre || 'Producto'} (x${p.cantidad || 1}) - Subtotal: $${(p.precio || 0) * (p.cantidad || 1)}`, 14, y);
                     y += 6;
                 });
             }
 
             y += 4;
             doc.setFont("helvetica", "bold");
-            doc.text(`Total del Pedido: $${orden.total}`, 14, y);
+            doc.text(`Total del Pedido: $${orden.total || 0}`, 14, y);
 
             y += 15;
             doc.setFont("helvetica", "bold");
@@ -1438,7 +1501,7 @@
             const splitText = doc.splitTextToSize(textoTC, 180);
             doc.text(splitText, 14, y);
 
-            doc.save(`Comprobante_${orden.numero_orden}.pdf`);
+            doc.save(`Comprobante_${numOrden}.pdf`);
         }
     </script>
 </body>
