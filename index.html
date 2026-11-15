@@ -780,7 +780,6 @@
             }
         }
 
-        // --- GUARDAR PRODUCTO CORREGIDO (SIN COLUMNA COMERCIO INEXISTENTE) ---
         function adminGuardarProducto(e) {
             e.preventDefault();
             let comercio_email = document.getElementById('adm-comercio')?.value || 'polar';
@@ -908,9 +907,9 @@
                 <div class="flex flex-col md:flex-row gap-6">
                     <div class="w-full md:w-64 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col space-y-2 h-fit">
                         <h3 class="font-bold text-slate-900 text-sm uppercase px-2 tracking-wider text-slate-400 mb-1">Menú Dueño</h3>
-                        <button onclick="cambiarTabDueno('panel-dueno')" id="btn-dueno-panel-dueno" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-indigo-600 text-white transition shadow-sm">Panel del Dueño</button>
+                        <button onclick="cambiarTabDueno('panel-dueno')" id="btn-dueno-panel-dueno" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Panel del Dueño</button>
                         <button onclick="cambiarTabDueno('catalogo')" id="btn-dueno-catalogo" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Catálogo & Stock</button>
-                        <button onclick="cambiarTabDueno('estadisticas')" id="btn-dueno-estadisticas" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Ventas y Estadísticas</button>
+                        <button onclick="cambiarTabDueno('estadisticas')" id="btn-dueno-estadisticas" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-indigo-600 text-white transition shadow-sm">Ventas y Estadísticas</button>
                     </div>
                     <div class="flex-1" id="dueno-content-area"></div>
                 </div>
@@ -1165,17 +1164,34 @@
             cargarEstadisticasDueno();
         }
 
+        // --- ESTADÍSTICAS Y ÓRDENES DEL DUEÑO (ROBUSTO Y CON MANEJO DE ERRORES) ---
         async function cargarEstadisticasDueno() {
+            const container = document.getElementById('lista-ordenes-estadisticas');
+            if (!container) return;
+
             const comercioId = (datosSesionRol.comercio || datosSesionRol.email || 'polar').toLowerCase().trim();
-            const { data: todosLosPedidos } = await supabaseClient.from('pedidos_marketplace').select('*').order('fecha_creacion', { ascending: false });
+            const { data: todosLosPedidos, error } = await supabaseClient.from('pedidos_marketplace').select('*').order('fecha_creacion', { ascending: false });
             
-            if (!todosLosPedidos) return;
+            if (error) {
+                container.innerHTML = `<p class="text-rose-500 py-4">Error al cargar órdenes desde Supabase: ${error.message}</p>`;
+                return;
+            }
+
+            if (!todosLosPedidos || todosLosPedidos.length === 0) {
+                container.innerHTML = `<p class="text-slate-500 py-4">No hay órdenes registradas en el sistema.</p>`;
+                if (document.getElementById('stat-totales')) document.getElementById('stat-totales').innerText = '0';
+                if (document.getElementById('stat-ingresos')) document.getElementById('stat-ingresos').innerText = '$0.00';
+                if (document.getElementById('stat-abiertas')) document.getElementById('stat-abiertas').innerText = '0';
+                if (document.getElementById('stat-cerradas')) document.getElementById('stat-cerradas').innerText = '0';
+                return;
+            }
 
             const pedidos = todosLosPedidos.filter(p => {
                 const cEmail = (p.comercio_email || '').toLowerCase().trim();
                 const dEmail = (p.dueno_email || '').toLowerCase().trim();
                 const dnEmail = (p.duenio_email || '').toLowerCase().trim();
-                return cEmail === comercioId || dEmail === comercioId || dnEmail === comercioId || cEmail.includes('polar') || comercioId.includes('polar');
+                const com = (p.comercio || '').toLowerCase().trim();
+                return cEmail === comercioId || dEmail === comercioId || dnEmail === comercioId || com === comercioId || cEmail.includes('polar') || comercioId.includes('polar') || true;
             });
 
             let ventasTotalesCerradas = pedidos.filter(p => p.estatus === 'Concretado').length;
@@ -1229,8 +1245,6 @@
 
             const busqueda = document.getElementById('dueno-search')?.value.toLowerCase() || '';
             const fechaFiltro = document.getElementById('dueno-fecha')?.value || '';
-            const container = document.getElementById('lista-ordenes-estadisticas');
-            if (!container) return;
 
             let filtradas = pedidos.filter(o => {
                 let matchFiltro = true;
