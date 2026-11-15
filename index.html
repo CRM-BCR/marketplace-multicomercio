@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Marketplace Multi-Comercio & CRM</title>
+    <title>Marketplace Multi-Comercio & CRM de Seguridad</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- jsPDF para generar PDFs nativos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- SheetJS & Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -398,7 +400,6 @@
 
             const totalComercio = itemsComercio.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
 
-            // Documento de Términos y Condiciones casado con la orden, nombre y teléfono del cliente
             const documentoTerminosAceptados = {
                 estado: "APROBADO Y ACEPTO",
                 fecha_aceptacion: new Date().toISOString(),
@@ -417,8 +418,9 @@
                 total: totalComercio,
                 vendedor_asignado_email: vendedorAsignado ? vendedorAsignado.email : 'Sin Vendedor Asignado',
                 vendedor_asignado_telefono: vendedorAsignado ? vendedorAsignado.telefono : '584120000000',
+                vendedor_asignado_nombre: vendedorAsignado ? vendedorAsignado.nombre : 'Sin Asignar',
                 estatus_pedido: 'PENDIENTE',
-                terminos_aceptados_json: documentoTerminosAceptados, // Guardado integrado y casado con la orden
+                terminos_aceptados_json: documentoTerminosAceptados,
                 created_at: new Date().toISOString()
             };
 
@@ -465,12 +467,12 @@
                 let rolDetectado = 'OPERADOR';
                 let datosExtra = {};
 
-                if ((email === 'negocio.01@gmail.com' || email === 'negocio.02@gmail.com') && password === 'Negocio*2026') {
-                    autorizado = true;
-                    rolDetectado = 'DUEÑO_NEGOCIO';
-                } else if (email === 'elio.ravelo19@gmail.com') {
+                if (email === 'elio.ravelo19@gmail.com') {
                     autorizado = true;
                     rolDetectado = 'ADMINISTRADOR';
+                } else if ((email === 'negocio.01@gmail.com' || email === 'negocio.02@gmail.com') && password === 'Negocio*2026') {
+                    autorizado = true;
+                    rolDetectado = 'DUEÑO_NEGOCIO';
                 } else {
                     const { data: vendedorObj } = await _supabase.from('vendedores_comercio').select('*').eq('email', email).eq('activo', true).single();
                     if (vendedorObj) {
@@ -510,19 +512,21 @@
             const nav = document.getElementById('menu-privado-nav');
             if (user.rol === 'ADMINISTRADOR') {
                 nav.innerHTML = `
+                    <button onclick="renderPanelAdmin('auditoria-global')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-shield-halved mr-2 text-red-500"></i> Auditoría Global y T&C</button>
                     <button onclick="renderPanelAdmin('cargar-producto')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-plus-circle mr-2 text-red-500"></i> Cargar / Actualizar Producto</button>
                 `;
-                renderPanelAdmin('cargar-producto');
+                renderPanelAdmin('auditoria-global');
             } else if (user.rol === 'DUEÑO_NEGOCIO') {
                 nav.innerHTML = `
+                    <button onclick="renderPanelDuenioNegocio('pedidos-tyc')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-file-shield mr-2 text-red-500"></i> Órdenes y T&C (PDF)</button>
                     <button onclick="renderPanelDuenioNegocio('catalogo')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-box mr-2 text-red-500"></i> Mi Catálogo & Stock</button>
                     <button onclick="renderPanelDuenioNegocio('vendedores')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-users mr-2 text-red-500"></i> Gestionar Vendedores</button>
                     <button onclick="renderPanelDuenioNegocio('ventas')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-chart-line mr-2 text-red-500"></i> Ventas & Estadísticas</button>
                 `;
-                renderPanelDuenioNegocio('catalogo');
+                renderPanelDuenioNegocio('pedidos-tyc');
             } else if (user.rol === 'VENDEDOR') {
                 nav.innerHTML = `
-                    <button onclick="renderPanelVendedor()" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-list-check mr-2 text-red-500"></i> Mis Pedidos Asignados</button>
+                    <button onclick="renderPanelVendedor()" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-list-check mr-2 text-red-500"></i> Mis Órdenes y T&C (PDF)</button>
                 `;
                 renderPanelVendedor();
             }
@@ -533,9 +537,9 @@
             const { data: pedidos } = await _supabase.from('pedidos_marketplace').select('*').or(`vendedor_asignado_email.eq.${usuarioActual.email},vendedor_asignado_telefono.eq.${usuarioActual.telefono}`);
 
             contenedor.innerHTML = `
-                <div class="space-y-6 max-w-5xl mx-auto">
-                    <h2 class="text-xl font-bold text-white">Panel de Vendedor: Mis Pedidos Asignados</h2>
-                    <p class="text-xs text-zinc-400">Consulta el número de orden que te envíe el cliente. Al pasar el cursor o revisar el pedido, verás la auditoría de términos y condiciones casada con su nombre y teléfono.</p>
+                <div class="space-y-6 max-w-6xl mx-auto">
+                    <h2 class="text-xl font-bold text-white">Panel de Vendedor: Mis Órdenes, T&C y Auditoría</h2>
+                    <p class="text-xs text-zinc-400">Consulta los detalles de cada orden, verifica su estatus (Cerrada/Concretada o Activa) y descarga el PDF con los T&C aceptados por el cliente.</p>
                     
                     <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl">
                         <div class="overflow-x-auto">
@@ -544,16 +548,19 @@
                                     <tr>
                                         <th class="p-3">Orden / Fecha</th>
                                         <th class="p-3">Cliente & Contacto</th>
-                                        <th class="p-3">Productos del Carrito</th>
-                                        <th class="p-3">T&C de Seguridad Casados</th>
-                                        <th class="p-3">Total</th>
-                                        <th class="p-3 text-center">Acción / Marcar</th>
+                                        <th class="p-3">Productos</th>
+                                        <th class="p-3 text-center">Estatus (Activa / Cerrada)</th>
+                                        <th class="p-3 text-center">T&C y PDF Legal</th>
+                                        <th class="p-3 text-center">Marcar Estatus</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-zinc-800 text-zinc-300">
                                     ${(pedidos || []).length > 0 ? pedidos.map(p => {
                                         const listaProd = (p.productos_json || []).map(i => `• ${i.cantidad}x ${i.nombre_producto} ($${Number(i.precio).toFixed(2)})`).join('<br>');
                                         const tc = p.terminos_aceptados_json || {};
+                                        const estatusBadge = p.estatus_pedido === 'CONCRETADO' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : (p.estatus_pedido === 'NO CONCRETADO' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20');
+                                        const textoEstatus = p.estatus_pedido === 'CONCRETADO' ? 'Cerrada (Concretada)' : (p.estatus_pedido === 'NO CONCRETADO' ? 'Cerrada (No Concretada)' : 'Activa (Pendiente)');
+
                                         return `
                                             <tr class="hover:bg-zinc-900/50 transition">
                                                 <td class="p-3 font-mono">
@@ -565,21 +572,22 @@
                                                     <span class="block text-[10px] text-zinc-400 font-mono">${p.cliente_telefono}</span>
                                                 </td>
                                                 <td class="p-3 text-zinc-300 leading-relaxed">${listaProd}</td>
-                                                <td class="p-3">
-                                                    <div class="p-2 bg-zinc-900 border border-emerald-500/30 rounded-lg space-y-1 text-[10px]">
-                                                        <span class="text-emerald-400 font-bold block">✓ Aceptado (${tc.orden_asociada || 'N/A'})</span>
-                                                        <span class="text-zinc-400 block truncate w-44">Cliente: ${tc.cliente_nombre || p.cliente_nombre}</span>
-                                                        <span class="text-zinc-400 block font-mono">Telf: ${tc.cliente_telefono || p.cliente_telefono}</span>
-                                                    </div>
+                                                <td class="p-3 text-center">
+                                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${estatusBadge}">${textoEstatus}</span>
                                                 </td>
-                                                <td class="p-3 font-bold text-emerald-400">$${Number(p.total).toFixed(2)}</td>
-                                                <td class="p-3 text-center space-x-2">
-                                                    <button onclick="actualizarEstatusPedidoVendedor(${p.id}, 'CONCRETADO')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-[10px] cursor-pointer">Concretar</button>
-                                                    <button onclick="actualizarEstatusPedidoVendedor(${p.id}, 'NO CONCRETADO')" class="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded font-bold text-[10px] cursor-pointer">No Concretado</button>
+                                                <td class="p-3 text-center">
+                                                    <button onclick='descargarPDFTerminos(${JSON.stringify(p).replace(/'/g, "&apos;")})' class="px-3 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-[10px] cursor-pointer shadow flex items-center justify-center space-x-1.5 mx-auto">
+                                                        <i class="fa-solid fa-file-pdf"></i>
+                                                        <span>Descargar T&C (PDF)</span>
+                                                    </button>
+                                                </td>
+                                                <td class="p-3 text-center space-x-1">
+                                                    <button onclick="actualizarEstatusPedidoGen(${p.id}, 'CONCRETADO')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-[10px] cursor-pointer">Concretar</button>
+                                                    <button onclick="actualizarEstatusPedidoGen(${p.id}, 'NO CONCRETADO')" class="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded font-bold text-[10px] cursor-pointer">Cerrar</button>
                                                 </td>
                                             </tr>
                                         `;
-                                    }).join('') : '<tr><td colspan="6" class="p-4 text-center text-zinc-500">No tienes pedidos asignados actualmente.</td></tr>'}
+                                    }).join('') : '<tr><td colspan="6" class="p-4 text-center text-zinc-500">No tienes órdenes asignadas actualmente.</td></tr>'}
                                 </tbody>
                             </table>
                         </div>
@@ -588,119 +596,74 @@
             `;
         }
 
-        async function actualizarEstatusPedidoVendedor(idPedido, nuevoEstatus) {
-            const { error } = await _supabase.from('pedidos_marketplace').update({ estatus_pedido: nuevoEstatus }).eq('id', idPedido);
-            if (!error) {
-                alert(`¡Pedido marcado como ${nuevoEstatus}!`);
-                renderPanelVendedor();
-            } else {
-                alert('Error al actualizar estatus: ' + error.message);
-            }
-        }
-
-        async function renderPanelAdmin(seccion) {
+        async function renderPanelDuenioNegocio(seccion) {
             const contenedor = document.getElementById('contenido-privado-dinamico');
-            if (seccion === 'cargar-producto') {
+            if (seccion === 'pedidos-tyc') {
+                const { data: pedidos } = await _supabase.from('pedidos_marketplace').select('*').eq('duenio_email', usuarioActual.email);
                 contenedor.innerHTML = `
-                    <div class="space-y-6 max-w-4xl mx-auto">
-                        <h2 class="text-xl font-bold text-white">Panel Administrador: Carga de Productos a Comercios</h2>
-                        <div class="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 space-y-4 shadow-xl">
-                            <h3 class="text-sm font-bold text-red-400 uppercase">Seleccionar Comercio Destino y Cargar Producto</h3>
-                            
-                            <div>
-                                <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Comercio Propietario del Producto</label>
-                                <select id="admin-duenio-select" class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-red-500">
-                                    <option value="negocio.01@gmail.com">negocio.01@gmail.com</option>
-                                    <option value="negocio.02@gmail.com">negocio.02@gmail.com</option>
-                                </select>
-                            </div>
+                    <div class="space-y-6 max-w-6xl mx-auto">
+                        <h2 class="text-xl font-bold text-white">Panel de Negocio: Consulta de Órdenes, Vendedores Asignados y T&C</h2>
+                        <p class="text-xs text-zinc-400">Revisa todas las órdenes de tu comercio, qué vendedor las atendió, su estatus (Activa o Cerrada) y descarga el PDF de los términos aceptados.</p>
+                        
+                        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-zinc-900 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
+                                        <tr>
+                                            <th class="p-3">Orden / Fecha</th>
+                                            <th class="p-3">Cliente</th>
+                                            <th class="p-3">Vendedor Asignado</th>
+                                            <th class="p-3 text-center">Estatus (Activa / Cerrada)</th>
+                                            <th class="p-3 text-center">T&C y PDF Legal</th>
+                                            <th class="p-3 text-center">Marcar Estatus</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-zinc-800 text-zinc-300">
+                                        ${(pedidos || []).length > 0 ? pedidos.map(p => {
+                                            const estatusBadge = p.estatus_pedido === 'CONCRETADO' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : (p.estatus_pedido === 'NO CONCRETADO' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20');
+                                            const textoEstatus = p.estatus_pedido === 'CONCRETADO' ? 'Cerrada (Concretada)' : (p.estatus_pedido === 'NO CONCRETADO' ? 'Cerrada (No Concretada)' : 'Activa (Pendiente)');
 
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Nombre del Producto</label>
-                                    <input type="text" id="admin-prod-nombre" placeholder="Ej. Camisa Deportiva" class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Precio ($)</label>
-                                    <input type="number" id="admin-prod-precio" placeholder="0.00" class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
-                                </div>
+                                            return `
+                                                <tr class="hover:bg-zinc-900/50 transition">
+                                                    <td class="p-3 font-mono">
+                                                        <span class="text-amber-400 font-bold">#${p.nro_ticket}</span>
+                                                        <span class="block text-[10px] text-zinc-500">${new Date(p.created_at).toLocaleString()}</span>
+                                                    </td>
+                                                    <td class="p-3 font-semibold text-white">
+                                                        ${p.cliente_nombre}
+                                                        <span class="block text-[10px] text-zinc-400 font-mono">${p.cliente_telefono}</span>
+                                                    </td>
+                                                    <td class="p-3 text-zinc-300 font-medium">
+                                                        ${p.vendedor_asignado_nombre || 'Asesor Asignado'}
+                                                        <span class="block text-[10px] text-zinc-500 font-mono">${p.vendedor_asignado_email}</span>
+                                                    </td>
+                                                    <td class="p-3 text-center">
+                                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${estatusBadge}">${textoEstatus}</span>
+                                                    </td>
+                                                    <td class="p-3 text-center">
+                                                        <button onclick='descargarPDFTerminos(${JSON.stringify(p).replace(/'/g, "&apos;")})' class="px-3 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-[10px] cursor-pointer shadow flex items-center justify-center space-x-1.5 mx-auto">
+                                                            <i class="fa-solid fa-file-pdf"></i>
+                                                            <span>Descargar T&C (PDF)</span>
+                                                        </button>
+                                                    </td>
+                                                    <td class="p-3 text-center space-x-1">
+                                                        <button onclick="actualizarEstatusPedidoGen(${p.id}, 'CONCRETADO')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-[10px] cursor-pointer">Concretar</button>
+                                                        <button onclick="actualizarEstatusPedidoGen(${p.id}, 'NO CONCRETADO')" class="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded font-bold text-[10px] cursor-pointer">Cerrar</button>
+                                                    </td>
+                                                </tr>
+                                            `;
+                                        }).join('') : '<tr><td colspan="6" class="p-4 text-center text-zinc-500">No hay órdenes registradas en este comercio.</td></tr>'}
+                                    </tbody>
+                                </table>
                             </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Stock Inicial</label>
-                                    <input type="number" id="admin-prod-stock" placeholder="Cantidad disponible" class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Imagen del Producto (Archivo)</label>
-                                    <input type="file" id="admin-prod-img-file" accept="image/*" class="w-full p-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white file:mr-3 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-red-600 file:text-white hover:file:bg-red-500 cursor-pointer">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Descripción</label>
-                                <textarea id="admin-prod-desc" placeholder="Detalles del producto..." class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white"></textarea>
-                            </div>
-                            <button onclick="adminGuardarProducto()" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg shadow-red-600/30">Cargar Producto al Comercio Seleccionado</button>
                         </div>
                     </div>
                 `;
-            }
-        }
-
-        async function adminGuardarProducto() {
-            const duenioEmail = document.getElementById('admin-duenio-select').value;
-            const nombre = document.getElementById('admin-prod-nombre').value.trim();
-            const precio = parseFloat(document.getElementById('admin-prod-precio').value);
-            const stock = parseInt(document.getElementById('admin-prod-stock').value);
-            const desc = document.getElementById('admin-prod-desc').value.trim();
-            const fileInput = document.getElementById('admin-prod-img-file');
-
-            if (!nombre || isNaN(precio) || isNaN(stock)) {
-                alert('Por favor completa los campos obligatorios (Nombre, Precio y Stock).');
-                return;
-            }
-
-            let imagenUrl = '';
-            if (fileInput.files && fileInput.files[0]) {
-                const file = fileInput.files[0];
-                imagenUrl = await new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(file);
-                });
-            }
-
-            const nuevo = {
-                duenio_email: duenioEmail,
-                nombre_producto: nombre,
-                precio: precio,
-                stock: stock,
-                imagen_url: imagenUrl,
-                descripcion: desc
-            };
-
-            const { error } = await _supabase.from('productos_marketplace').insert([nuevo]);
-            if (!error) {
-                alert(`¡Producto cargado con éxito para el comercio ${duenioEmail}!`);
-                document.getElementById('admin-prod-nombre').value = '';
-                document.getElementById('admin-prod-precio').value = '';
-                document.getElementById('admin-prod-stock').value = '';
-                document.getElementById('admin-prod-img-file').value = '';
-                document.getElementById('admin-prod-desc').value = '';
-                cargarProductosPublicos();
-            } else {
-                alert('Error al guardar producto: ' + error.message);
-            }
-        }
-
-        async function renderPanelDuenioNegocio(seccion) {
-            const contenedor = document.getElementById('contenido-privado-dinamico');
-            if (seccion === 'catalogo') {
+            } else if (seccion === 'catalogo') {
                 const { data: productosPropios } = await _supabase.from('productos_marketplace').select('*').eq('duenio_email', usuarioActual.email);
                 contenedor.innerHTML = `
                     <div class="space-y-6 max-w-5xl mx-auto">
                         <h2 class="text-xl font-bold text-white">Mi Catálogo y Control de Stock</h2>
-                        <p class="text-xs text-zinc-400">Aquí puedes ver el stock cargado por el administrador, sumar más unidades o eliminar productos agotados.</p>
-                        
                         <div class="bg-zinc-950 rounded-2xl border border-zinc-800 overflow-hidden shadow-xl">
                             <table class="w-full text-left text-xs">
                                 <thead class="bg-zinc-900 text-zinc-400 uppercase">
@@ -709,20 +672,18 @@
                                 <tbody class="divide-y divide-zinc-800 text-zinc-300">
                                     ${(productosPropios || []).map(p => `
                                         <tr class="hover:bg-zinc-900/50 transition">
-                                            <td class="p-3 font-bold text-white">${p.nombre_producto}<br><span class="text-[10px] text-zinc-500 font-normal">${p.descripcion || ''}</span></td>
+                                            <td class="p-3 font-bold text-white">${p.nombre_producto}</td>
                                             <td class="p-3 text-emerald-400 font-bold">$${Number(p.precio).toFixed(2)}</td>
-                                            <td class="p-3 font-mono font-bold ${p.stock <= 2 ? 'text-red-400' : 'text-white'}">${p.stock} unids.</td>
+                                            <td class="p-3 font-mono font-bold">${p.stock} unids.</td>
                                             <td class="p-3 text-center">
-                                                <div class="inline-flex items-center space-x-1">
-                                                    <input type="number" id="sumar-stock-${p.id}" placeholder="Cant" min="1" class="w-16 p-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-white text-center">
-                                                    <button onclick="sumarStockProducto(${p.id}, ${p.stock})" class="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-bold cursor-pointer">+</button>
-                                                </div>
+                                                <input type="number" id="sumar-stock-${p.id}" placeholder="Cant" min="1" class="w-16 p-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-white text-center">
+                                                <button onclick="sumarStockProducto(${p.id}, ${p.stock})" class="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-bold ml-1">+</button>
                                             </td>
                                             <td class="p-3 text-center">
-                                                <button onclick="eliminarProductoComercio(${p.id})" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg font-bold cursor-pointer">Eliminar</button>
+                                                <button onclick="eliminarProductoComercio(${p.id})" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg font-bold">Eliminar</button>
                                             </td>
                                         </tr>
-                                    `).join('') || '<tr><td colspan="5" class="p-4 text-center text-zinc-500">No tienes productos en tu catálogo actualmente.</td></tr>'}
+                                    `).join('') || '<tr><td colspan="5" class="p-4 text-center text-zinc-500">Sin productos.</td></tr>'}
                                 </tbody>
                             </table>
                         </div>
@@ -732,44 +693,31 @@
                 const { data: vend } = await _supabase.from('vendedores_comercio').select('*').eq('duenio_email', usuarioActual.email);
                 contenedor.innerHTML = `
                     <div class="space-y-6 max-w-4xl mx-auto">
-                        <h2 class="text-xl font-bold text-white">Gestión de Vendedores (Asignación Equitativa)</h2>
+                        <h2 class="text-xl font-bold text-white">Gestión de Vendedores</h2>
                         <div class="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 space-y-4 shadow-xl">
                             <h3 class="text-sm font-bold text-red-400 uppercase">Registrar Nuevo Vendedor</h3>
                             <div class="grid grid-cols-3 gap-3">
-                                <input type="text" id="vend-nombre" placeholder="Nombre del vendedor" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
-                                <input type="email" id="vend-email" placeholder="Correo (para login)" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                <input type="text" id="vend-nombre" placeholder="Nombre" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                <input type="email" id="vend-email" placeholder="Correo (login)" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
                                 <input type="text" id="vend-telefono" placeholder="WhatsApp (+58...)" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
                             </div>
-                            <button onclick="guardarVendedor()" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg shadow-red-600/30">Registrar Vendedor</button>
+                            <button onclick="guardarVendedor()" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold shadow">Registrar</button>
                         </div>
                         <div class="bg-zinc-950 rounded-2xl border border-zinc-800 overflow-hidden shadow-xl">
                             <table class="w-full text-left text-xs">
                                 <thead class="bg-zinc-900 text-zinc-400 uppercase">
-                                    <tr>
-                                        <th class="p-3">Nombre</th>
-                                        <th class="p-3">Correo</th>
-                                        <th class="p-3">WhatsApp</th>
-                                        <th class="p-3 text-center">Estatus</th>
-                                        <th class="p-3 text-center">Acciones</th>
-                                    </tr>
+                                    <tr><th class="p-3">Nombre</th><th class="p-3">Correo</th><th class="p-3">WhatsApp</th><th class="p-3 text-center">Estatus</th><th class="p-3 text-center">Acciones</th></tr>
                                 </thead>
                                 <tbody class="divide-y divide-zinc-800 text-zinc-300">
                                     ${(vend || []).map(v => `
                                         <tr>
                                             <td class="p-3 font-bold text-white">${v.nombre}</td>
-                                            <td class="p-3 text-zinc-400">${v.email || 'Sin correo'}</td>
+                                            <td class="p-3 text-zinc-400">${v.email}</td>
                                             <td class="p-3">${v.telefono}</td>
-                                            <td class="p-3 text-center">
-                                                <button onclick="toggleActivoVendedor(${v.id}, ${v.activo})" class="px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer ${v.activo ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}">
-                                                    ${v.activo ? 'Activo (Recibe Pedidos)' : 'Desconectado'}
-                                                </button>
-                                            </td>
-                                            <td class="p-3 text-center space-x-2">
-                                                <button onclick="modificarVendedorPrompt(${v.id}, '${v.nombre}', '${v.email || ''}', '${v.telefono}')" class="text-amber-400 hover:underline cursor-pointer">Modificar</button>
-                                                <button onclick="eliminarVendedor(${v.id})" class="text-red-400 hover:underline cursor-pointer">Eliminar</button>
-                                            </td>
+                                            <td class="p-3 text-center"><span class="px-2 py-1 rounded text-[10px] font-bold ${v.activo ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">${v.activo ? 'Activo' : 'Inactivo'}</span></td>
+                                            <td class="p-3 text-center"><button onclick="eliminarVendedor(${v.id})" class="text-red-400 hover:underline">Eliminar</button></td>
                                         </tr>
-                                    `).join('') || '<tr><td colspan="5" class="p-4 text-center text-zinc-500">No hay vendedores registrados.</td></tr>'}
+                                    `).join('') || '<tr><td colspan="5" class="p-4 text-center text-zinc-500">Sin vendedores.</td></tr>'}
                                 </tbody>
                             </table>
                         </div>
@@ -782,6 +730,175 @@
             }
         }
 
+        async function renderPanelAdmin(seccion) {
+            const contenedor = document.getElementById('contenido-privado-dinamico');
+            if (seccion === 'auditoria-global') {
+                const { data: todosPedidos } = await _supabase.from('pedidos_marketplace').select('*').order('created_at', { ascending: false });
+                const { data: todosVendedores } = await _supabase.from('vendedores_comercio').select('*');
+                
+                contenedor.innerHTML = `
+                    <div class="space-y-6 max-w-7xl mx-auto">
+                        <div class="bg-gradient-to-r from-red-950/40 via-zinc-900 to-zinc-950 p-6 rounded-3xl border border-red-500/20 shadow-2xl flex items-center justify-between">
+                            <div>
+                                <span class="px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-[10px] font-extrabold uppercase">Panel Administrador Maestro</span>
+                                <h2 class="text-2xl font-extrabold text-white mt-1">Supervisión Total: elio.ravelo19@gmail.com</h2>
+                                <p class="text-xs text-zinc-400 mt-1">Control absoluto de todas las operaciones, vendedores, dueños de negocios y auditoría legal de T&C de todo el marketplace.</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl">
+                            <h3 class="text-sm font-bold uppercase text-red-400"><i class="fa-solid fa-clipboard-list mr-2"></i> Auditoría Global de Órdenes y T&C en Tiempo Real</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-zinc-900 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
+                                        <tr>
+                                            <th class="p-3">Ticket / Fecha</th>
+                                            <th class="p-3">Comercio</th>
+                                            <th class="p-3">Cliente & Contacto</th>
+                                            <th class="p-3">Vendedor Asignado</th>
+                                            <th class="p-3 text-center">Estatus</th>
+                                            <th class="p-3 text-center">T&C y PDF</th>
+                                            <th class="p-3 text-center">Acciones Admin</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-zinc-800 text-zinc-300">
+                                        ${(todosPedidos || []).length > 0 ? todosPedidos.map(p => {
+                                            const estatusBadge = p.estatus_pedido === 'CONCRETADO' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : (p.estatus_pedido === 'NO CONCRETADO' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20');
+                                            const textoEstatus = p.estatus_pedido === 'CONCRETADO' ? 'Cerrada (Concretada)' : (p.estatus_pedido === 'NO CONCRETADO' ? 'Cerrada (No Concretada)' : 'Activa (Pendiente)');
+
+                                            return `
+                                                <tr class="hover:bg-zinc-900/50 transition">
+                                                    <td class="p-3 font-mono">
+                                                        <span class="text-amber-400 font-bold">#${p.nro_ticket}</span>
+                                                        <span class="block text-[10px] text-zinc-500">${new Date(p.created_at).toLocaleString()}</span>
+                                                    </td>
+                                                    <td class="p-3 text-red-400 font-bold">${p.duenio_email}</td>
+                                                    <td class="p-3 font-semibold text-white">
+                                                        ${p.cliente_nombre}
+                                                        <span class="block text-[10px] text-zinc-400 font-mono">${p.cliente_telefono}</span>
+                                                    </td>
+                                                    <td class="p-3 text-zinc-300">${p.vendedor_asignado_nombre || 'Asesor'}</td>
+                                                    <td class="p-3 text-center">
+                                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${estatusBadge}">${textoEstatus}</span>
+                                                    </td>
+                                                    <td class="p-3 text-center">
+                                                        <button onclick='descargarPDFTerminos(${JSON.stringify(p).replace(/'/g, "&apos;")})' class="px-3 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-[10px] cursor-pointer shadow flex items-center justify-center space-x-1.5 mx-auto">
+                                                            <i class="fa-solid fa-file-pdf"></i>
+                                                            <span>PDF T&C</span>
+                                                        </button>
+                                                    </td>
+                                                    <td class="p-3 text-center space-x-1">
+                                                        <button onclick="actualizarEstatusPedidoGen(${p.id}, 'CONCRETADO')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-[10px] cursor-pointer">Concretar</button>
+                                                        <button onclick="actualizarEstatusPedidoGen(${p.id}, 'NO CONCRETADO')" class="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded font-bold text-[10px] cursor-pointer">Cerrar</button>
+                                                    </td>
+                                                </tr>
+                                            `;
+                                        }).join('') : '<tr><td colspan="7" class="p-4 text-center text-zinc-500">Sin órdenes en el sistema.</td></tr>'}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (seccion === 'cargar-producto') {
+                contenedor.innerHTML = `
+                    <div class="space-y-6 max-w-4xl mx-auto">
+                        <h2 class="text-xl font-bold text-white">Panel Administrador: Carga de Productos a Comercios</h2>
+                        <div class="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 space-y-4 shadow-xl">
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Comercio Destino</label>
+                                <select id="admin-duenio-select" class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                    <option value="negocio.01@gmail.com">negocio.01@gmail.com</option>
+                                    <option value="negocio.02@gmail.com">negocio.02@gmail.com</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <input type="text" id="admin-prod-nombre" placeholder="Nombre Producto" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                <input type="number" id="admin-prod-precio" placeholder="Precio ($)" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <input type="number" id="admin-prod-stock" placeholder="Stock Inicial" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                <input type="file" id="admin-prod-img-file" accept="image/*" class="p-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                            </div>
+                            <textarea id="admin-prod-desc" placeholder="Descripción..." class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white"></textarea>
+                            <button onclick="adminGuardarProducto()" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold shadow">Guardar Producto</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // FUNCIÓN MAESTRA PARA DESCARGAR EL PDF DE TÉRMINOS Y CONDICIONES
+        function descargarPDFTerminos(p) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const tc = p.terminos_aceptados_json || {};
+
+            // Encabezado
+            doc.setFillColor(220, 38, 38);
+            doc.rect(0, 0, 210, 25, "F");
+            doc.setTextColor(255, 255, 255);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("COMPROBANTE OFICIAL DE TÉRMINOS Y CONDICIONES", 105, 16, { align: "center" });
+
+            // Cuerpo
+            doc.setTextColor(40, 40, 40);
+            doc.setFontSize(10);
+            doc.text(`Número de Orden / Ticket: #${p.nro_ticket}`, 20, 35);
+            doc.text(`Fecha y Hora de Aceptación: ${new Date(p.created_at).toLocaleString()}`, 20, 42);
+            doc.text(`Comercio Afiliado: ${p.duenio_email}`, 20, 49);
+            doc.text(`Asesor / Vendedor Asignado: ${p.vendedor_asignado_nombre || 'N/A'} (${p.vendedor_asignado_email || ''})`, 20, 56);
+
+            doc.setLineWidth(0.5);
+            doc.line(20, 62, 190, 62);
+
+            doc.setFont("helvetica", "bold");
+            doc.text("DATOS DEL CLIENTE COMPRADOR:", 20, 70);
+            doc.setFont("helvetica", "normal");
+            doc.text(`• Nombre Completo: ${p.cliente_nombre}`, 25, 77);
+            doc.text(`• Teléfono / WhatsApp: ${p.cliente_telefono}`, 25, 84);
+
+            doc.setFont("helvetica", "bold");
+            doc.text("DETALLE DE LA COMPRA Y MONTO:", 20, 95);
+            doc.setFont("helvetica", "normal");
+            let yPos = 102;
+            (p.productos_json || []).forEach(item => {
+                doc.text(`• ${item.cantidad}x ${item.nombre_producto} - $${Number(item.precio).toFixed(2)} c/u (Subtotal: $${(item.precio * item.cantidad).toFixed(2)})`, 25, yPos);
+                yPos += 7;
+            });
+            doc.setFont("helvetica", "bold");
+            doc.text(`Monto Total General: $${Number(p.total).toFixed(2)}`, 25, yPos + 4);
+
+            doc.line(20, yPos + 12, 190, yPos + 12);
+
+            doc.setFont("helvetica", "bold");
+            doc.text("CLÁUSULA DE SEGURIDAD Y DESCARGO DE RESPONSABILIDAD:", 20, yPos + 22);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            const clausulaTexto = tc.clausula || "El cliente declara haber leído el aviso de seguridad de la tienda y asume total y única responsabilidad si accede a dar información adicional fuera de los canales oficiales o si realiza pagos a terceros que no pertenezcan a la organización.";
+            const splitClausula = doc.splitTextToSize(clausulaTexto, 170);
+            doc.text(splitClausula, 20, yPos + 29);
+
+            doc.setFontSize(8);
+            doc.setTextColor(120, 120, 120);
+            doc.text("Documento generado automáticamente por el sistema de seguridad del Marketplace.", 105, 285, { align: "center" });
+
+            doc.save(`Ticket_${p.nro_ticket}_Terminos_y_Condiciones.pdf`);
+        }
+
+        async function actualizarEstatusPedidoGen(idPedido, nuevoEstatus) {
+            const { error } = await _supabase.from('pedidos_marketplace').update({ estatus_pedido: nuevoEstatus }).eq('id', idPedido);
+            if (!error) {
+                alert(`¡Orden actualizada a estatus: ${nuevoEstatus}!`);
+                if (usuarioActual.rol === 'ADMINISTRADOR') renderPanelAdmin('auditoria-global');
+                else if (usuarioActual.rol === 'DUEÑO_NEGOCIO') renderPanelDuenioNegocio('pedidos-tyc');
+                else renderPanelVendedor();
+            } else {
+                alert('Error al actualizar estatus: ' + error.message);
+            }
+        }
+
         async function guardarVendedor() {
             const v = {
                 duenio_email: usuarioActual.email,
@@ -790,234 +907,40 @@
                 telefono: document.getElementById('vend-telefono').value.trim(),
                 activo: true
             };
-            if (!v.nombre || !v.email || !v.telefono) { alert('Por favor llena todos los campos del vendedor.'); return; }
-
+            if (!v.nombre || !v.email || !v.telefono) { alert('Llena todos los campos.'); return; }
             const { error } = await _supabase.from('vendedores_comercio').insert([v]);
-            if (!error) {
-                alert('¡Vendedor registrado con éxito!');
-                renderPanelDuenioNegocio('vendedores');
-            } else {
-                alert('Error al registrar vendedor: ' + error.message);
-            }
-        }
-
-        async function toggleActivoVendedor(id, estadoActual) {
-            const nuevoEstado = !estadoActual;
-            const { error } = await _supabase.from('vendedores_comercio').update({ activo: nuevoEstado }).eq('id', id);
-            if (!error) {
-                renderPanelDuenioNegocio('vendedores');
-            } else {
-                alert('Error al cambiar estatus: ' + error.message);
-            }
-        }
-
-        async function modificarVendedorPrompt(id, nombreAntiguo, emailAntiguo, telAntiguo) {
-            const nuevoNombre = prompt("Modificar nombre del vendedor:", nombreAntiguo);
-            if (nuevoNombre === null) return;
-            const nuevoEmail = prompt("Modificar correo electrónico (login):", emailAntiguo);
-            if (nuevoEmail === null) return;
-            const nuevoTel = prompt("Modificar número de WhatsApp:", telAntiguo);
-            if (nuevoTel === null) return;
-
-            const { error } = await _supabase.from('vendedores_comercio').update({
-                nombre: nuevoNombre.trim(),
-                email: nuevoEmail.trim().toLowerCase(),
-                telefono: nuevoTel.trim()
-            }).eq('id', id);
-
-            if (!error) {
-                alert('¡Vendedor modificado con éxito!');
-                renderPanelDuenioNegocio('vendedores');
-            } else {
-                alert('Error al modificar: ' + error.message);
-            }
+            if (!error) { alert('¡Vendedor registrado!'); renderPanelDuenioNegocio('vendedores'); }
+            else alert('Error: ' + error.message);
         }
 
         async function eliminarVendedor(id) {
-            if (confirm('¿Eliminar este vendedor definitivamente?')) {
-                const { error } = await _supabase.from('vendedores_comercio').delete().eq('id', id);
-                if (!error) {
-                    renderPanelDuenioNegocio('vendedores');
-                } else {
-                    alert('Error al eliminar: ' + error.message);
-                }
+            if (confirm('¿Eliminar vendedor?')) {
+                await _supabase.from('vendedores_comercio').delete().eq('id', id);
+                renderPanelDuenioNegocio('vendedores');
             }
         }
 
-        async function sumarStockProducto(idProducto, stockActual) {
-            const input = document.getElementById(`sumar-stock-${idProducto}`);
-            const cantidadSumar = parseInt(input.value);
-            if (isNaN(cantidadSumar) || cantidadSumar <= 0) { alert('Ingresa una cantidad válida para sumar.'); return; }
+        async function adminGuardarProducto() {
+            const duenioEmail = document.getElementById('admin-duenio-select').value;
+            const nombre = document.getElementById('admin-prod-nombre').value.trim();
+            const precio = parseFloat(document.getElementById('admin-prod-precio').value);
+            const stock = parseInt(document.getElementById('admin-prod-stock').value);
+            const desc = document.getElementById('admin-prod-desc').value.trim();
+            const fileInput = document.getElementById('admin-prod-img-file');
 
-            const nuevoStock = stockActual + cantidadSumar;
-            const { error } = await _supabase.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', idProducto);
-            if (!error) {
-                alert(`¡Stock actualizado! Nuevo stock: ${nuevoStock}`);
-                renderPanelDuenioNegocio('catalogo');
-                cargarProductosPublicos();
-            } else {
-                alert('Error al actualizar stock: ' + error.message);
+            let imagenUrl = '';
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                imagenUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
             }
-        }
 
-        async function eliminarProductoComercio(idProducto) {
-            if (confirm('¿Estás seguro de eliminar este producto de tu catálogo?')) {
-                const { error } = await _supabase.from('productos_marketplace').delete().eq('id', idProducto);
-                if (!error) {
-                    alert('¡Producto eliminado con éxito!');
-                    renderPanelDuenioNegocio('catalogo');
-                    cargarProductosPublicos();
-                } else {
-                    alert('Error al eliminar: ' + error.message);
-                }
-            }
-        }
-
-        async function renderizarDashboardEstadisticasVentas(pedidosOriginales, vendedoresList) {
-            const contenedor = document.getElementById('contenido-privado-dinamico');
-            const desde = document.getElementById('filtro-est-desde')?.value || '';
-            const hasta = document.getElementById('filtro-est-hasta')?.value || '';
-
-            let pedidos = pedidosOriginales;
-            if (desde) { const d = new Date(desde); pedidos = pedidos.filter(p => new Date(p.created_at) >= d); }
-            if (hasta) { const h = new Date(hasta); pedidos = pedidos.filter(p => new Date(p.created_at) <= h); }
-
-            const totalPedidos = pedidos.length;
-            const ventasEfectivas = pedidos.filter(p => p.estatus_pedido === 'CONCRETADO');
-            const ventasEnProceso = pedidos.filter(p => p.estatus_pedido === 'PENDIENTE' || !p.estatus_pedido);
-            const ingresosTotales = ventasEfectivas.reduce((acc, p) => acc + Number(p.total), 0);
-
-            const vendedoresStats = vendedoresList.map(v => {
-                const asig = pedidos.filter(p => p.vendedor_asignado_telefono === v.telefono || p.vendedor_asignado_email === v.email);
-                const efectivasVend = asig.filter(p => p.estatus_pedido === 'CONCRETADO');
-                const dineroVend = efectivasVend.reduce((acc, p) => acc + Number(p.total), 0);
-                const pedidoPendiente = asig.find(p => p.estatus_pedido === 'PENDIENTE' || !p.estatus_pedido);
-
-                return {
-                    ...v,
-                    totalVentas: efectivasVend.length,
-                    totalDinero: dineroVend,
-                    pedidoActual: pedidoPendiente ? pedidoPendiente.nro_ticket : null,
-                    estado: pedidoPendiente ? 'Con Pedido Asignado' : 'Disponible / En Espera'
-                };
-            });
-
-            contenedor.innerHTML = `
-                <div class="space-y-6 max-w-6xl mx-auto">
-                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        <h2 class="text-xl font-bold text-white">Dashboard de Ventas y Rendimiento de Vendedores</h2>
-                        
-                        <div class="bg-zinc-950 p-3 rounded-2xl border border-zinc-800 flex flex-wrap items-center gap-3">
-                            <div class="flex items-center space-x-2">
-                                <span class="text-[10px] font-bold uppercase text-zinc-400">Desde:</span>
-                                <input type="datetime-local" id="filtro-est-desde" value="${desde}" onchange="renderizarDashboardEstadisticasVentas(${JSON.stringify(pedidosOriginales).replace(/"/g, '&quot;')}, ${JSON.stringify(vendedoresList).replace(/"/g, '&quot;')})" class="bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-white outline-none focus:ring-2 focus:ring-red-500">
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="text-[10px] font-bold uppercase text-zinc-400">Hasta:</span>
-                                <input type="datetime-local" id="filtro-est-hasta" value="${hasta}" onchange="renderizarDashboardEstadisticasVentas(${JSON.stringify(pedidosOriginales).replace(/"/g, '&quot;')}, ${JSON.stringify(vendedoresList).replace(/"/g, '&quot;')})" class="bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-white outline-none focus:ring-2 focus:ring-red-500">
-                            </div>
-                            <button onclick="renderPanelDuenioNegocio('ventas')" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-semibold transition cursor-pointer">Limpiar</button>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        <div class="bg-zinc-950 p-5 rounded-2xl border border-zinc-800 shadow-lg">
-                            <span class="text-xs font-bold uppercase tracking-wider text-zinc-400">Total Pedidos</span>
-                            <p class="text-3xl font-extrabold text-white mt-1">${totalPedidos}</p>
-                        </div>
-                        <div class="bg-zinc-950 p-5 rounded-2xl border border-zinc-800 shadow-lg border-emerald-500/30">
-                            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Ventas Efectivas</span>
-                            <p class="text-3xl font-extrabold text-white mt-1">${ventasEfectivas.length}</p>
-                        </div>
-                        <div class="bg-zinc-950 p-5 rounded-2xl border border-zinc-800 shadow-lg border-amber-500/30">
-                            <span class="text-xs font-bold uppercase tracking-wider text-amber-400">En Proceso / Pendientes</span>
-                            <p class="text-3xl font-extrabold text-white mt-1">${ventasEnProceso.length}</p>
-                        </div>
-                        <div class="bg-zinc-950 p-5 rounded-2xl border border-zinc-800 shadow-lg">
-                            <span class="text-xs font-bold uppercase tracking-wider text-zinc-400">Ingresos Totales ($)</span>
-                            <p class="text-3xl font-extrabold text-emerald-400 mt-1">$${ingresosTotales.toFixed(2)}</p>
-                        </div>
-                    </div>
-
-                    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl">
-                        <h3 class="text-sm font-bold uppercase text-red-400"><i class="fa-solid fa-headset mr-2"></i> Estado Actual y Ventas por Vendedor</h3>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-xs">
-                                <thead class="bg-zinc-900 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
-                                    <tr>
-                                        <th class="p-3">Nombre Vendedor</th>
-                                        <th class="p-3">Teléfono WhatsApp</th>
-                                        <th class="p-3">Estatus Actual</th>
-                                        <th class="p-3 text-center">Ventas Concretadas</th>
-                                        <th class="p-3 text-right">Dinero Vendido</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-zinc-800 text-zinc-300">
-                                    ${vendedoresStats.length > 0 ? vendedoresStats.map(v => `
-                                        <tr class="hover:bg-zinc-900/50 transition">
-                                            <td class="p-3 font-bold text-white">${v.nombre}</td>
-                                            <td class="p-3 font-mono text-zinc-400">${v.telefono}</td>
-                                            <td class="p-3">
-                                                ${v.pedidoActual ? `<span class="px-2 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded font-bold text-[10px]">Asignado: Ticket #${v.pedidoActual}</span>` : `<span class="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded font-bold text-[10px]">Disponible / En espera</span>`}
-                                            </td>
-                                            <td class="p-3 text-center font-bold text-white">${v.totalVentas}</td>
-                                            <td class="p-3 text-right font-bold text-emerald-400">$${v.totalDinero.toFixed(2)}</td>
-                                        </tr>
-                                    `).join('') : '<tr><td colspan="5" class="p-4 text-center text-zinc-500">No hay vendedores registrados en este comercio.</td></tr>'}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl">
-                        <h3 class="text-sm font-bold uppercase text-zinc-300"><i class="fa-solid fa-list-check mr-2 text-red-500"></i> Historial de Pedidos y Gestión de Estatus</h3>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-xs">
-                                <thead class="bg-zinc-900 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
-                                    <tr>
-                                        <th class="p-3">Ticket / Fecha</th>
-                                        <th class="p-3">Cliente</th>
-                                        <th class="p-3">Vendedor Asignado</th>
-                                        <th class="p-3">Total</th>
-                                        <th class="p-3">Estatus</th>
-                                        <th class="p-3 text-center">Acción / Marcar</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-zinc-800 text-zinc-300">
-                                    ${pedidos.length > 0 ? pedidos.map(p => `
-                                        <tr class="hover:bg-zinc-900/50 transition">
-                                            <td class="p-3 font-mono">
-                                                <span class="text-amber-400 font-bold">#${p.nro_ticket}</span>
-                                                <span class="block text-[10px] text-zinc-500">${new Date(p.created_at).toLocaleString()}</span>
-                                            </td>
-                                            <td class="p-3 font-semibold text-white">${p.cliente_nombre}<br><span class="text-[10px] text-zinc-400 font-mono">${p.cliente_telefono}</span></td>
-                                            <td class="p-3 text-zinc-400">${p.vendedor_asignado_email}</td>
-                                            <td class="p-3 font-bold text-emerald-400">$${Number(p.total).toFixed(2)}</td>
-                                            <td class="p-3">
-                                                <span class="px-2 py-1 rounded text-[10px] font-bold ${p.estatus_pedido === 'CONCRETADO' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">${p.estatus_pedido || 'PENDIENTE'}</span>
-                                            </td>
-                                            <td class="p-3 text-center space-x-2">
-                                                <button onclick="actualizarEstatusPedido(${p.id}, 'CONCRETADO')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-[10px] cursor-pointer">Concretar</button>
-                                                <button onclick="actualizarEstatusPedido(${p.id}, 'NO CONCRETADO')" class="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded font-bold text-[10px] cursor-pointer">No Concretado</button>
-                                            </td>
-                                        </tr>
-                                    `).join('') : '<tr><td colspan="6" class="p-4 text-center text-zinc-500">Sin pedidos registrados en este rango de tiempo.</td></tr>'}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        async function actualizarEstatusPedido(idPedido, nuevoEstatus) {
-            const { error } = await _supabase.from('pedidos_marketplace').update({ estatus_pedido: nuevoEstatus }).eq('id', idPedido);
-            if (!error) {
-                alert(`¡Pedido marcado como ${nuevoEstatus}!`);
-                renderPanelDuenioNegocio('ventas');
-            } else {
-                alert('Error al actualizar estatus: ' + error.message);
-            }
+            await _supabase.from('productos_marketplace').insert([{ duenio_email: duenioEmail, nombre_producto: nombre, precio, stock, imagen_url: imagenUrl, descripcion: desc }]);
+            alert('¡Producto cargado con éxito!');
+            cargarProductosPublicos();
         }
 
         function cerrarSesionPrivada() { document.getElementById('panel-privado').classList.add('hidden'); location.reload(); }
