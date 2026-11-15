@@ -67,7 +67,7 @@
     <div id="modal-usuario-crm" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center z-50">
         <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-2xl w-full max-w-lg relative border border-slate-700">
             <button onclick="cerrarModalUsuario()" class="absolute top-4 right-4 text-slate-400 hover:text-white font-bold text-xl">&times;</button>
-            <h3 id="modal-usuario-titulo" class="text-xl font-bold mb-4 text-indigo-400">Registrar Nuevo Usuario</h3>
+            <h3 id="modal-usuario-titulo" class="text-xl font-bold mb-4 text-indigo-400">Registrar Nuevo Vendedor</h3>
             
             <form id="form-usuario-crm" onsubmit="guardarUsuarioModal(event)" class="space-y-4">
                 <input type="hidden" id="usuario-edit-id">
@@ -80,15 +80,15 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Comercio Afiliado (comercio_email)</label>
-                    <input type="text" id="modal-comercio" required placeholder="Ej. polar o negocio.01@gmail.com" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Comercio Afiliado / Asignación</label>
+                    <input type="text" id="modal-comercio" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Nombre Completo</label>
                     <input type="text" id="modal-nombre" required placeholder="Ej. Antonio Molina" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Correo Electrónico (email)</label>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Correo Electrónico</label>
                     <input type="email" id="modal-email" required placeholder="Ej. antonio.01@gmail.com" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div id="grupo-telefono">
@@ -137,7 +137,7 @@
                 } else if (email.startsWith('negocio.')) {
                     datosSesionRol = { rol: 'Dueño de Negocio', comercio_email: email, email: email };
                 } else {
-                    datosSesionRol = { rol: 'Dueño de Negocio', comercio_email: 'polar', email: email };
+                    datosSesionRol = { rol: 'Vendedor', comercio_email: 'polar', email: email };
                 }
             }
 
@@ -205,10 +205,10 @@
             grid.innerHTML = data.map(p => {
                 const productoLimpio = {
                     id: p.id,
-                    nombre: p.nombre,
+                    nombre: p.nombre || p.nombre_producto,
                     precio: p.precio,
                     stock: p.stock,
-                    comercio_email: p.comercio_email,
+                    comercio_email: p.comercio_email || p.dueno_email || p.duenio_email,
                     descripcion: p.descripcion,
                     imagen_url: p.imagen_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
                 };
@@ -217,14 +217,14 @@
                     <div class="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
                         <div>
                             <div class="h-48 w-full overflow-hidden bg-slate-100 relative">
-                                <img src="${productoLimpio.imagen_url}" alt="${p.nombre}" class="w-full h-full object-cover">
-                                <span class="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 bg-white/90 backdrop-blur-sm text-indigo-600 rounded-full shadow-sm">${p.comercio_email}</span>
+                                <img src="${productoLimpio.imagen_url}" alt="${productoLimpio.nombre}" class="w-full h-full object-cover">
+                                <span class="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 bg-white/90 backdrop-blur-sm text-indigo-600 rounded-full shadow-sm">${productoLimpio.comercio_email}</span>
                             </div>
                             <div class="p-5">
-                                <h3 class="font-bold text-lg text-slate-900">${p.nombre}</h3>
-                                <p class="text-slate-600 text-sm mt-1">${p.descripcion || 'Sin descripción'}</p>
-                                <p class="text-indigo-600 font-extrabold text-2xl mt-4">$${p.precio}</p>
-                                <p class="text-xs text-slate-400 mt-1">Stock disponible: ${p.stock}</p>
+                                <h3 class="font-bold text-lg text-slate-900">${productoLimpio.nombre}</h3>
+                                <p class="text-slate-600 text-sm mt-1">${productoLimpio.descripcion || 'Sin descripción'}</p>
+                                <p class="text-indigo-600 font-extrabold text-2xl mt-4">$${productoLimpio.precio}</p>
+                                <p class="text-xs text-slate-400 mt-1">Stock disponible: ${productoLimpio.stock}</p>
                             </div>
                         </div>
                         <div class="p-5 pt-0">
@@ -236,6 +236,16 @@
         }
 
         function agregarAlCarrito(producto) {
+            if (carrito.length > 0) {
+                const comercioActual = carrito[0].comercio_email;
+                if (comercioActual !== producto.comercio_email) {
+                    if (!confirm(`Tu carrito actual contiene productos de "${comercioActual}". ¿Deseas vaciar el carrito para agregar productos de esta nueva tienda?`)) {
+                        return;
+                    }
+                    carrito = [];
+                }
+            }
+
             const existente = carrito.find(item => item.id === producto.id);
             if (existente) {
                 if (existente.cantidad < producto.stock) {
@@ -398,7 +408,8 @@
             const { data } = await supabaseClient.from('vendedores_comercio').select('*');
             if (data) {
                 data.forEach(v => {
-                    if (v.comercio_email && v.comercio_email !== 'Global' && v.comercio_email !== 'N/A') comerciosSet.add(v.comercio_email);
+                    const c = v.comercio_email || v.dueno_email || v.duenio_email;
+                    if (c && c !== 'Global' && c !== 'N/A') comerciosSet.add(c);
                 });
             }
 
@@ -543,17 +554,21 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${data.map(p => `
-                            <tr class="border-b border-slate-100">
-                                <td class="p-3 font-bold">${p.nombre}</td>
-                                <td class="p-3 text-indigo-600">${p.comercio_email}</td>
-                                <td class="p-3">$${p.precio}</td>
-                                <td class="p-3">${p.stock}</td>
-                                <td class="p-3">
-                                    <button onclick="eliminarProductoGlobalAdmin('${p.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold hover:bg-rose-700 transition">Eliminar</button>
-                                </td>
-                            </tr>
-                        `).join('')}
+                        ${data.map(p => {
+                            const cEmail = p.comercio_email || p.dueno_email || p.duenio_email || 'N/A';
+                            const pNombre = p.nombre || p.nombre_producto;
+                            return `
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-3 font-bold">${pNombre}</td>
+                                    <td class="p-3 text-indigo-600">${cEmail}</td>
+                                    <td class="p-3">$${p.precio}</td>
+                                    <td class="p-3">${p.stock}</td>
+                                    <td class="p-3">
+                                        <button onclick="eliminarProductoGlobalAdmin('${p.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold hover:bg-rose-700 transition">Eliminar</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -583,7 +598,10 @@
 
             if (vendedores) {
                 vendedores.forEach(v => {
-                    listaUsuarios.push(v);
+                    listaUsuarios.push({
+                        ...v,
+                        comercio_email: v.comercio_email || v.dueno_email || v.duenio_email || 'polar'
+                    });
                 });
             }
 
@@ -598,7 +616,7 @@
                             <th class="p-3">Nombre</th>
                             <th class="p-3">Correo / Usuario</th>
                             <th class="p-3">Rol</th>
-                            <th class="p-3">Comercio (comercio_email)</th>
+                            <th class="p-3">Comercio</th>
                             <th class="p-3">Teléfono</th>
                             <th class="p-3">Estatus</th>
                             <th class="p-3">Acciones</th>
@@ -611,11 +629,11 @@
                                 <td class="p-3">${u.email}</td>
                                 <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${u.rol === 'Administrador' ? 'bg-purple-100 text-purple-800' : u.rol === 'Dueño de Negocio' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'}">${u.rol}</span></td>
                                 <td class="p-3 text-slate-600">${u.comercio_email}</td>
-                                <td class="p-3">${u.telefono}</td>
+                                <td class="p-3">${u.telefono || 'N/A'}</td>
                                 <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${u.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
                                 <td class="p-3 space-x-2">
                                     ${u.id !== 'admin-1' && u.id !== 'dueño-1' ? `
-                                        <button onclick="abrirModalEditarUsuario('${u.id}', '${u.nombre}', '${u.email}', '${u.telefono}', '${u.comercio_email}', '${u.rol}')" class="text-indigo-600 hover:underline font-semibold text-xs">Modificar</button>
+                                        <button onclick="abrirModalEditarUsuario('${u.id}', '${u.nombre}', '${u.email}', '${u.telefono || ''}', '${u.comercio_email}', '${u.rol}')" class="text-indigo-600 hover:underline font-semibold text-xs">Modificar</button>
                                         <button onclick="eliminarUsuarioSistema('${u.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
                                     ` : `<span class="text-xs text-slate-400">Sistema Fijo</span>`}
                                 </td>
@@ -643,14 +661,15 @@
 
         function abrirModalNuevoUsuario(comercioSugerido = 'polar') {
             document.getElementById('usuario-edit-id').value = '';
-            document.getElementById('modal-usuario-titulo').innerText = 'Registrar Nuevo Usuario';
+            document.getElementById('modal-usuario-titulo').innerText = 'Registrar Nuevo Vendedor';
             document.getElementById('modal-rol').value = 'Vendedor';
             
             const inputComercio = document.getElementById('modal-comercio');
             const contenedorRol = document.getElementById('contenedor-rol-select');
 
             if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
-                inputComercio.value = datosSesionRol.comercio_email;
+                const comercioDueno = datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar';
+                inputComercio.value = comercioDueno;
                 inputComercio.readOnly = true;
                 inputComercio.classList.add('bg-slate-700', 'text-slate-400', 'cursor-not-allowed');
                 contenedorRol.style.display = 'none';
@@ -777,6 +796,7 @@
                     const payloadProducto = {
                         comercio_email: comercio_email,
                         nombre: nombre,
+                        nombre_producto: nombre,
                         precio: precio,
                         stock: stock,
                         imagen_url: imagenBase64,
@@ -805,11 +825,7 @@
                     alert('Error al eliminar orden: ' + error.message);
                 } else {
                     alert('Orden eliminada con éxito');
-                    if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
-                        cargarEstadisticasDueno();
-                    } else {
-                        cargarAuditoriaAdmin();
-                    }
+                    cargarEstadisticasDueno();
                 }
             }
         }
@@ -822,120 +838,39 @@
                         await supabaseClient.from('pedidos_marketplace').delete().eq('id', o.id);
                     }
                     alert('Todas las órdenes han sido eliminadas.');
-                    if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
-                        cargarEstadisticasDueno();
-                    } else {
-                        cargarAuditoriaAdmin();
-                    }
+                    cargarEstadisticasDueno();
                 } else {
                     alert('No hay órdenes para eliminar.');
                 }
             }
         }
 
-        async function cargarAuditoriaAdmin() {
-            const busqueda = document.getElementById('adm-search')?.value.toLowerCase() || '';
-            const comercioFiltro = document.getElementById('adm-filtro-comercio')?.value || '';
-            const fechaFiltro = document.getElementById('adm-filtro-fecha')?.value || '';
-
-            let query = supabaseClient.from('pedidos_marketplace').select('*');
-            if (comercioFiltro) query = query.eq('comercio_email', comercioFiltro);
-
-            const { data, error } = await query;
-            const container = document.getElementById('adm-tabla-auditoria');
-            if (!container) return;
-
-            if (error) {
-                container.innerHTML = `<p class="text-rose-500 py-4">Error al cargar auditoría: ${error.message}</p>`;
-                return;
-            }
-
-            if (!data || data.length === 0) {
-                container.innerHTML = `<p class="text-slate-500">No hay órdenes registradas.</p>`;
-                return;
-            }
-
-            let filtrados = data.filter(o => {
-                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
-                let matchFecha = !fechaFiltro || (o.created_at && o.created_at.startsWith(fechaFiltro));
-                return matchBusqueda && matchFecha;
-            });
-
-            if (filtrados.length === 0) {
-                container.innerHTML = `<p class="text-slate-500">No hay órdenes que coincidan con los filtros.</p>`;
-                return;
-            }
-
-            container.innerHTML = `
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50">
-                            <th class="p-3">N° Orden</th>
-                            <th class="p-3">Comercio</th>
-                            <th class="p-3">Cliente</th>
-                            <th class="p-3">Teléfono</th>
-                            <th class="p-3">Vendedor</th>
-                            <th class="p-3">Total</th>
-                            <th class="p-3">Estatus</th>
-                            <th class="p-3">Acciones T&C</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${filtrados.map(o => `
-                            <tr class="border-b border-slate-100">
-                                <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
-                                <td class="p-3">${o.comercio_email}</td>
-                                <td class="p-3">${o.cliente_nombre}</td>
-                                <td class="p-3">${o.cliente_telefono}</td>
-                                <td class="p-3">${o.vendedor_email || 'Sin asignar'}</td>
-                                <td class="p-3 font-semibold">$${o.total}</td>
-                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : o.estatus === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${o.estatus}</span></td>
-                                <td class="p-3 space-x-2">
-                                    <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">PDF T&C</button>
-                                    <button onclick="eliminarOrdenSupabase('${o.id}')" class="bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Eliminar</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
-
-        async function cargarLogAuditoriaAdmin() {
-            const container = document.getElementById('admin-log-container');
-            if (!container) return;
-            const { data } = await supabaseClient.from('vendedores_comercio').select('*');
-            container.innerHTML = `
-                [SISTEMA ACTIVO] Conexión establecida con Supabase.<br>
-                - Esquema Unificado Operativo.<br>
-                - Total de Usuarios registrados: ${data ? data.length : 0}
-            `;
-        }
-
-        // --- PANEL DE DUEÑO DE NEGOCIO ---
-        function renderizarPanelDueno(duenoObj) {
+        // --- PANEL DE DUEÑO Y VENDEDOR ---
+        function renderizarPanelDueno(usuarioObj) {
             const main = document.getElementById('main-content');
-            const comercioId = duenoObj.comercio_email || 'polar';
+            const comercioId = usuarioObj.comercio_email || usuarioObj.dueno_email || 'polar';
+            const esVendedor = usuarioObj.rol === 'Vendedor';
 
             main.innerHTML = `
                 <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-slate-900">Panel Dueño de Negocio (${comercioId})</h2>
-                    <p class="text-slate-500 text-sm">Administración y gestión de vendedores, stock y estadísticas de ventas</p>
+                    <h2 class="text-2xl font-bold text-slate-900">${esVendedor ? 'Panel de Vendedor' : 'Panel Dueño de Negocio'} (${comercioId})</h2>
+                    <p class="text-slate-500 text-sm">${esVendedor ? 'Gestión de tus pedidos asignados' : 'Administración de vendedores, stock y estadísticas de ventas'}</p>
                 </div>
                 <div class="flex flex-col md:flex-row gap-6">
                     <div class="w-full md:w-64 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col space-y-2 h-fit">
-                        <h3 class="font-bold text-slate-900 text-sm uppercase px-2 tracking-wider text-slate-400 mb-1">Menú Dueño</h3>
-                        <button onclick="cambiarTabDueno('panel-dueno')" id="btn-dueno-panel-dueno" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Panel del Dueño</button>
-                        <button onclick="cambiarTabDueno('catalogo')" id="btn-dueno-catalogo" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Catálogo & Stock</button>
-                        <button onclick="cambiarTabDueno('estadisticas')" id="btn-dueno-estadisticas" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-indigo-600 text-white transition shadow-sm">Ventas y Estadísticas</button>
+                        <h3 class="font-bold text-slate-900 text-sm uppercase px-2 tracking-wider text-slate-400 mb-1">Menú ${esVendedor ? 'Vendedor' : 'Dueño'}</h3>
+                        ${!esVendedor ? `<button onclick="cambiarTabDueno('panel-dueno')" id="btn-dueno-panel-dueno" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Panel del Dueño</button>` : ''}
+                        ${!esVendedor ? `<button onclick="cambiarTabDueno('catalogo')" id="btn-dueno-catalogo" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Catálogo & Stock</button>` : ''}
+                        <button onclick="cambiarTabDueno('estadisticas')" id="btn-dueno-estadisticas" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-indigo-600 text-white transition shadow-sm">${esVendedor ? 'Mis Pedidos Asignados' : 'Ventas y Estadísticas'}</button>
                     </div>
                     <div class="flex-1" id="dueno-content-area"></div>
                 </div>
             `;
-            cambiarTabDueno('estadisticas');
+            cambiarTabDueno(esVendedor ? 'estadisticas' : 'estadisticas');
         }
 
         function cambiarTabDueno(tab) {
+            const esVendedor = datosSesionRol.rol === 'Vendedor';
             ['panel-dueno', 'catalogo', 'estadisticas'].forEach(t => {
                 const btn = document.getElementById(`btn-dueno-${t}`);
                 if (btn) {
@@ -946,9 +881,9 @@
             });
 
             const area = document.getElementById('dueno-content-area');
-            const comercioId = datosSesionRol.comercio_email || 'polar';
+            const comercioId = datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar';
 
-            if (tab === 'panel-dueno') {
+            if (tab === 'panel-dueno' && !esVendedor) {
                 area.innerHTML = `
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -962,7 +897,7 @@
                     </div>
                 `;
                 cargarVendedoresPanelDueno();
-            } else if (tab === 'catalogo') {
+            } else if (tab === 'catalogo' && !esVendedor) {
                 area.innerHTML = `
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -976,6 +911,7 @@
             } else if (tab === 'estadisticas') {
                 area.innerHTML = `
                     <div class="space-y-6">
+                        ${!esVendedor ? `
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                                 <p class="text-slate-500 text-sm">Ventas Totales Cerradas</p>
@@ -1004,10 +940,11 @@
                             <p class="text-xs text-amber-700 mb-2">Hay órdenes registradas donde los vendedores estaban ocupados o inactivos. Puedes reasignarlas o gestionarlas aquí:</p>
                             <div id="tabla-ordenes-pendientes-asignar" class="overflow-x-auto"></div>
                         </div>
+                        ` : ''}
 
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <h3 class="text-xl font-bold text-slate-900">Detalle de Órdenes y Estatus</h3>
+                                <h3 class="text-xl font-bold text-slate-900">${esVendedor ? 'Mis Órdenes Asignadas' : 'Detalle de Órdenes y Estatus'}</h3>
                                 <div class="flex flex-wrap gap-2">
                                     <button onclick="filtrarVentasDueno('todas')" id="btn-filtro-todas" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold">Todas</button>
                                     <button onclick="filtrarVentasDueno('Pendiente')" id="btn-filtro-abiertas" class="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200">Abiertas (Pendientes)</button>
@@ -1027,12 +964,15 @@
         }
 
         async function cargarVendedoresPanelDueno() {
-            const comercioId = (datosSesionRol.comercio_email || 'polar').toLowerCase().trim();
+            const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
             const { data } = await supabaseClient.from('vendedores_comercio').select('*');
             const container = document.getElementById('lista-vendedores-dueno-container');
             if (!container) return;
 
-            const misVendedores = data ? data.filter(v => (v.comercio_email || '').toLowerCase().trim() === comercioId) : [];
+            const misVendedores = data ? data.filter(v => {
+                const c = (v.comercio_email || v.dueno_email || v.duenio_email || '').toLowerCase().trim();
+                return (c === comercioId || c.includes(comercioId)) && v.rol === 'Vendedor';
+            }) : [];
 
             if (misVendedores.length === 0) {
                 container.innerHTML = `<p class="text-slate-500 py-4">No tienes vendedores registrados todavía. Haz clic en "+ Nuevo Vendedor" para agregar uno.</p>`;
@@ -1059,7 +999,7 @@
                                 <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${v.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${v.activo ? 'Activo' : 'Inactivo'}</span></td>
                                 <td class="p-3 space-x-2">
                                     <button onclick="toggleEstadoVendedorDueno('${v.id}', ${!v.activo})" class="text-indigo-600 hover:underline font-semibold text-xs">${v.activo ? 'Inactivar' : 'Activar'}</button>
-                                    <button onclick="abrirModalEditarUsuario('${v.id}', '${v.nombre}', '${v.email}', '${v.telefono}', '${v.comercio_email}', '${v.rol}')" class="text-amber-600 hover:underline font-semibold text-xs">Modificar</button>
+                                    <button onclick="abrirModalEditarUsuario('${v.id}', '${v.nombre}', '${v.email}', '${v.telefono || ''}', '${v.comercio_email || v.dueno_email || 'polar'}', 'Vendedor')" class="text-amber-600 hover:underline font-semibold text-xs">Modificar</button>
                                     <button onclick="eliminarUsuarioSistema('${v.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
                                 </td>
                             </tr>
@@ -1079,7 +1019,7 @@
         }
 
         async function cargarCatalogoDueno() {
-            const comercioId = (datosSesionRol.comercio_email || 'polar').toLowerCase().trim();
+            const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
             const { data } = await supabaseClient.from('productos_marketplace').select('*');
             const container = document.getElementById('catalogo-stock-container');
             if (!container) return;
@@ -1090,13 +1030,21 @@
                 return;
             }
 
-            cacheCatalogoDueno = data.filter(p => (p.comercio_email || '').toLowerCase().trim() === comercioId);
+            cacheCatalogoDueno = data.filter(p => {
+                const cEmail = (p.comercio_email || p.dueno_email || p.duenio_email || '').toLowerCase().trim();
+                return cEmail === comercioId || cEmail.includes(comercioId);
+            });
+
             renderizarListaCatalogoDueno(cacheCatalogoDueno);
         }
 
         function filtrarCatalogoDueno() {
             const busqueda = document.getElementById('catalogo-search')?.value.toLowerCase().trim() || '';
-            const filtrados = cacheCatalogoDueno.filter(p => p.nombre.toLowerCase().includes(busqueda) || (p.descripcion && p.descripcion.toLowerCase().includes(busqueda)));
+            const filtrados = cacheCatalogoDueno.filter(p => {
+                const pNombre = (p.nombre || p.nombre_producto || '').toLowerCase();
+                const pDesc = (p.descripcion || '').toLowerCase();
+                return pNombre.includes(busqueda) || pDesc.includes(busqueda);
+            });
             renderizarListaCatalogoDueno(filtrados);
         }
 
@@ -1111,33 +1059,41 @@
 
             container.innerHTML = `
                 <div class="space-y-3">
-                    ${productos.map(p => `
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border border-slate-100 bg-slate-50/50 p-4 rounded-xl gap-4">
-                            <div class="flex items-center space-x-3">
-                                ${p.imagen_url ? `<img src="${p.imagen_url}" class="w-12 h-12 rounded-lg object-cover border border-slate-200">` : ''}
-                                <div>
-                                    <h4 class="font-bold text-slate-900">${p.nombre}</h4>
-                                    <p class="text-xs text-slate-500">Precio: $${p.precio} | Stock actual: <span class="font-bold text-indigo-600">${p.stock}</span></p>
+                    ${productos.map(p => {
+                        const pNombre = p.nombre || p.nombre_producto;
+                        const pImg = p.imagen_url || '';
+                        return `
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border border-slate-100 bg-slate-50/50 p-4 rounded-xl gap-4">
+                                <div class="flex items-center space-x-3">
+                                    ${pImg ? `<img src="${pImg}" class="w-12 h-12 rounded-lg object-cover border border-slate-200">` : ''}
+                                    <div>
+                                        <h4 class="font-bold text-slate-900">${pNombre}</h4>
+                                        <p class="text-xs text-slate-500">Precio: $${p.precio} | Stock actual: <span class="font-bold text-indigo-600">${p.stock}</span></p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-3 w-full sm:w-auto">
+                                    <div class="flex items-center space-x-2">
+                                        <input type="number" id="input-stock-${p.id}" value="${p.stock}" class="w-20 border border-slate-300 p-1.5 rounded-lg text-sm bg-white">
+                                        <button onclick="actualizarStockDueno('${p.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Guardar Stock</button>
+                                    </div>
+                                    <button onclick="eliminarProductoDueno('${p.id}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:bg-rose-700 transition">Eliminar</button>
                                 </div>
                             </div>
-                            <div class="flex items-center space-x-3 w-full sm:w-auto">
-                                <div class="flex items-center space-x-2">
-                                    <input type="number" id="input-stock-${p.id}" value="${p.stock}" class="w-20 border border-slate-300 p-1.5 rounded-lg text-sm bg-white">
-                                    <button onclick="actualizarStockDueno('${p.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Guardar Stock</button>
-                                </div>
-                                <button onclick="eliminarProductoDueno('${p.id}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:bg-rose-700 transition">Eliminar</button>
-                            </div>
-                        </div>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </div>
             `;
         }
 
         async function actualizarStockDueno(id) {
             const nuevoStock = parseInt(document.getElementById(`input-stock-${id}`).value);
-            await supabaseClient.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', id);
-            alert('Stock actualizado con éxito');
-            cargarCatalogoDueno();
+            const { error } = await supabaseClient.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', id);
+            if (error) {
+                alert('Error al actualizar stock: ' + error.message);
+            } else {
+                alert('Stock actualizado con éxito');
+                cargarCatalogoDueno();
+            }
         }
 
         async function eliminarProductoDueno(id) {
@@ -1170,7 +1126,10 @@
             const container = document.getElementById('lista-ordenes-estadisticas');
             if (!container) return;
 
-            const comercioId = (datosSesionRol.comercio_email || 'polar').toLowerCase().trim();
+            const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
+            const esVendedor = datosSesionRol.rol === 'Vendedor';
+            const emailVendedor = (datosSesionRol.email || '').toLowerCase().trim();
+
             const { data: todosLosPedidos, error } = await supabaseClient.from('pedidos_marketplace').select('*');
             
             if (error) {
@@ -1187,7 +1146,17 @@
                 return;
             }
 
-            const pedidos = todosLosPedidos.filter(p => (p.comercio_email || '').toLowerCase().trim() === comercioId);
+            let pedidos = todosLosPedidos.filter(p => {
+                const cEmail = (p.comercio_email || p.dueno_email || p.duenio_email || '').toLowerCase().trim();
+                return cEmail === comercioId || cEmail.includes(comercioId) || comercioId.includes(cEmail);
+            });
+
+            if (esVendedor) {
+                pedidos = pedidos.filter(p => {
+                    const vEmail = (p.vendedor_email || '').toLowerCase().trim();
+                    return vEmail === emailVendedor;
+                });
+            }
 
             let ventasTotalesCerradas = pedidos.filter(p => p.estatus === 'Concretado').length;
             let ingresosTotales = pedidos.filter(p => p.estatus === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
@@ -1199,47 +1168,50 @@
             if (document.getElementById('stat-abiertas')) document.getElementById('stat-abiertas').innerText = ventasAbiertas;
             if (document.getElementById('stat-cerradas')) document.getElementById('stat-cerradas').innerText = ventasCerradas;
 
-            const ordenesSinAsignar = pedidos.filter(p => (!p.vendedor_email || p.vendedor_email === 'Sin asignar') && p.estatus === 'Pendiente');
-            const alertaBox = document.getElementById('alerta-ordenes-pendientes');
-            const tablaPendientes = document.getElementById('tabla-ordenes-pendientes-asignar');
-            
-            if (ordenesSinAsignar.length > 0 && alertaBox && tablaPendientes) {
-                alertaBox.classList.remove('hidden');
-                tablaPendientes.innerHTML = `
-                    <table class="w-full text-left border-collapse text-xs">
-                        <thead>
-                            <tr class="border-b border-amber-200 bg-amber-100/50">
-                                <th class="p-2">N° Orden</th>
-                                <th class="p-2">Cliente</th>
-                                <th class="p-2">Teléfono</th>
-                                <th class="p-2">Total</th>
-                                <th class="p-2">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${ordenesSinAsignar.map(o => `
-                                <tr class="border-b border-amber-200">
-                                    <td class="p-2 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
-                                    <td class="p-2">${o.cliente_nombre}</td>
-                                    <td class="p-2">${o.cliente_telefono}</td>
-                                    <td class="p-2 font-semibold">$${o.total}</td>
-                                    <td class="p-2"><button onclick="asignarVendedorOrdenModal('${o.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-semibold">Asignar Vendedor</button></td>
+            if (!esVendedor) {
+                const ordenesSinAsignar = pedidos.filter(p => (!p.vendedor_email || p.vendedor_email === 'Sin asignar' || p.vendedor_email === 'undefined') && (p.estatus === 'Pendiente' || !p.estatus));
+                const alertaBox = document.getElementById('alerta-ordenes-pendientes');
+                const tablaPendientes = document.getElementById('tabla-ordenes-pendientes-asignar');
+                
+                if (ordenesSinAsignar.length > 0 && alertaBox && tablaPendientes) {
+                    alertaBox.classList.remove('hidden');
+                    tablaPendientes.innerHTML = `
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="border-b border-amber-200 bg-amber-100/50">
+                                    <th class="p-2">N° Orden</th>
+                                    <th class="p-2">Cliente</th>
+                                    <th class="p-2">Teléfono</th>
+                                    <th class="p-2">Total</th>
+                                    <th class="p-2">Acción</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-            } else if (alertaBox) {
-                alertaBox.classList.add('hidden');
+                            </thead>
+                            <tbody>
+                                ${ordenesSinAsignar.map(o => `
+                                    <tr class="border-b border-amber-200">
+                                        <td class="p-2 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
+                                        <td class="p-2">${o.cliente_nombre}</td>
+                                        <td class="p-2">${o.cliente_telefono}</td>
+                                        <td class="p-2 font-semibold">$${o.total}</td>
+                                        <td class="p-2"><button onclick="asignarVendedorOrdenModal('${o.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-semibold">Asignar Vendedor</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                } else if (alertaBox) {
+                    alertaBox.classList.add('hidden');
+                }
             }
 
             const busqueda = document.getElementById('dueno-search')?.value.toLowerCase() || '';
             const fechaFiltro = document.getElementById('dueno-fecha')?.value || '';
 
             let filtradas = pedidos.filter(o => {
+                let est = o.estatus || 'Pendiente';
                 let matchFiltro = true;
-                if (filtroVentasActual === 'Pendiente') matchFiltro = (o.estatus === 'Pendiente');
-                if (filtroVentasActual === 'Cerradas') matchFiltro = (o.estatus === 'Concretado' || o.estatus === 'No Concretado');
+                if (filtroVentasActual === 'Pendiente') matchFiltro = (est === 'Pendiente');
+                if (filtroVentasActual === 'Cerradas') matchFiltro = (est === 'Concretado' || est === 'No Concretado');
 
                 let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
                 let matchFecha = !fechaFiltro || (o.created_at && o.created_at.startsWith(fechaFiltro));
@@ -1265,22 +1237,34 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${filtradas.map(o => `
-                            <tr class="border-b border-slate-100">
-                                <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
-                                <td class="p-3 text-xs text-slate-500">${new Date(o.created_at).toLocaleString()}</td>
-                                <td class="p-3">${o.cliente_nombre}<br><span class="text-xs text-slate-500">${o.cliente_telefono}</span></td>
-                                <td class="p-3 text-indigo-600 font-medium">${o.vendedor_email || 'Sin asignar'}</td>
-                                <td class="p-3 font-semibold">$${o.total}</td>
-                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : o.estatus === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${o.estatus}</span></td>
-                                <td class="p-3 space-x-1">
-                                    <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
-                                    <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
-                                    <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
-                                    <button onclick="eliminarOrdenSupabase('${o.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Eliminar</button>
-                                </td>
-                            </tr>
-                        `).join('')}
+                        ${filtradas.map(o => {
+                            const est = o.estatus || 'Pendiente';
+                            const fechaCreacion = o.created_at ? new Date(o.created_at).toLocaleString() : 'Reciente';
+                            
+                            // Lógica de permisos de estatus y eliminación para Vendedor vs Dueño/Admin
+                            const esOrdenCerrada = (est === 'Concretado' || est === 'No Concretado');
+                            const puedeModificarEstatus = !esVendedor || !esOrdenCerrada;
+                            const puedeEliminar = !esVendedor;
+
+                            return `
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${o.numero_orden}</button></td>
+                                    <td class="p-3 text-xs text-slate-500">${fechaCreacion}</td>
+                                    <td class="p-3">${o.cliente_nombre}<br><span class="text-xs text-slate-500">${o.cliente_telefono}</span></td>
+                                    <td class="p-3 text-indigo-600 font-medium">${o.vendedor_email || 'Sin asignar'}</td>
+                                    <td class="p-3 font-semibold">$${o.total}</td>
+                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${est === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : est === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${est}</span></td>
+                                    <td class="p-3 space-x-1">
+                                        ${puedeModificarEstatus ? `
+                                            <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
+                                            <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
+                                        ` : `<span class="text-xs text-slate-400 italic">Bloqueada (Solo Dueño)</span>`}
+                                        <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
+                                        ${puedeEliminar ? `<button onclick="eliminarOrdenSupabase('${o.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Eliminar</button>` : ''}
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -1290,22 +1274,22 @@
             const modal = document.getElementById('modal-detalle-orden');
             document.getElementById('modal-orden-titulo').innerText = `Detalles de la Orden: ${orden.numero_orden}`;
             
-            let productosHtml = orden.productos.map((p, idx) => `
+            let productosHtml = Array.isArray(orden.productos) ? orden.productos.map((p, idx) => `
                 <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <div>
-                        <p class="font-bold text-slate-900">${idx + 1}. ${p.nombre}</p>
+                        <p class="font-bold text-slate-900">${idx + 1}. ${p.nombre || p.nombre_producto}</p>
                         <p class="text-xs text-slate-500">Cantidad: ${p.cantidad} | Precio Unitario: $${p.precio}</p>
                     </div>
                     <span class="font-semibold text-indigo-600">$${p.precio * p.cantidad}</span>
                 </div>
-            `).join('');
+            `).join('') : '<p class="text-slate-500">Sin productos</p>';
 
             document.getElementById('modal-orden-contenido').innerHTML = `
                 <div class="space-y-3">
                     <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-xs space-y-1">
-                        <p><strong>Estatus Actual:</strong> <span class="font-bold uppercase">${orden.estatus}</span></p>
-                        <p><strong>Fecha y Hora:</strong> ${new Date(orden.created_at).toLocaleString()}</p>
-                        <p><strong>Comercio Afiliado:</strong> ${orden.comercio_email}</p>
+                        <p><strong>Estatus Actual:</strong> <span class="font-bold uppercase">${orden.estatus || 'Pendiente'}</span></p>
+                        <p><strong>Fecha y Hora:</strong> ${orden.created_at ? new Date(orden.created_at).toLocaleString() : 'Reciente'}</p>
+                        <p><strong>Comercio Afiliado:</strong> ${orden.comercio_email || orden.dueno_email || 'polar'}</p>
                         <p><strong>Vendedor Asignado:</strong> ${orden.vendedor_email || 'Sin asignar'}</p>
                     </div>
                     <div>
@@ -1331,13 +1315,16 @@
         }
 
         async function asignarVendedorOrdenModal(idOrden) {
-            const comercioId = (datosSesionRol.comercio_email || 'polar').toLowerCase().trim();
+            const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
             const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*');
             
-            const misVendedores = vendedores ? vendedores.filter(v => (v.comercio_email || '').toLowerCase().trim() === comercioId) : [];
+            const misVendedores = vendedores ? vendedores.filter(v => {
+                const c = (v.comercio_email || v.dueno_email || v.duenio_email || '').toLowerCase().trim();
+                return (c === comercioId || c.includes(comercioId)) && v.rol === 'Vendedor' && v.activo;
+            }) : [];
 
             if (misVendedores.length === 0) {
-                alert('No tienes vendedores registrados o activos para asignar.');
+                alert('No tienes vendedores activos para asignar.');
                 return;
             }
 
@@ -1361,16 +1348,22 @@
         }
 
         async function cambiarEstatusOrden(idOrden, nuevoEstatus) {
+            // Verificar si el usuario actual es vendedor y la orden ya estaba cerrada
+            const esVendedor = datosSesionRol.rol === 'Vendedor';
+            if (esVendedor) {
+                const { data: ordenActual } = await supabaseClient.from('pedidos_marketplace').select('estatus').eq('id', idOrden).maybeSingle();
+                if (ordenActual && (ordenActual.estatus === 'Concretado' || ordenActual.estatus === 'No Concretado')) {
+                    alert('No tienes permisos para modificar el estatus de una orden que ya ha sido cerrada. Contacta al dueño.');
+                    return;
+                }
+            }
+
             const { error } = await supabaseClient.from('pedidos_marketplace').update({ estatus: nuevoEstatus }).eq('id', idOrden);
             if (error) {
                 alert('Error al actualizar estatus: ' + error.message);
             } else {
                 alert(`Orden marcada como ${nuevoEstatus}`);
-                if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
-                    cargarEstadisticasDueno();
-                } else if (usuarioActual) {
-                    direccionarPanelSegunRol();
-                }
+                cargarEstadisticasDueno();
             }
         }
 
@@ -1385,8 +1378,8 @@
             doc.setFontSize(10);
             doc.setFont("helvetica", "normal");
             doc.text(`Número de Orden: ${orden.numero_orden}`, 14, 30);
-            doc.text(`Fecha y Hora: ${new Date(orden.created_at).toLocaleString()}`, 14, 36);
-            doc.text(`Comercio Afiliado: ${orden.comercio_email}`, 14, 42);
+            doc.text(`Fecha y Hora: ${orden.created_at ? new Date(orden.created_at).toLocaleString() : 'Reciente'}`, 14, 36);
+            doc.text(`Comercio Afiliado: ${orden.comercio_email || orden.dueno_email || 'polar'}`, 14, 42);
             doc.text(`Vendedor Asignado: ${orden.vendedor_email || 'Sin asignar'}`, 14, 48);
 
             doc.line(14, 53, 196, 53);
@@ -1404,7 +1397,7 @@
             let y = 90;
             if (orden.productos && Array.isArray(orden.productos)) {
                 orden.productos.forEach((p, index) => {
-                    doc.text(`${index + 1}. ${p.nombre} (x${p.cantidad}) - Subtotal: $${p.precio * p.cantidad}`, 14, y);
+                    doc.text(`${index + 1}. ${p.nombre || p.nombre_producto} (x${p.cantidad}) - Subtotal: $${p.precio * p.cantidad}`, 14, y);
                     y += 6;
                 });
             }
