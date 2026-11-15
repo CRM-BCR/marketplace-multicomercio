@@ -190,12 +190,12 @@
                 return;
             }
             grid.innerHTML = data.map(p => {
-                const nombreProd = p.nombre || p.titulo || p.nombre_producto || 'Producto sin nombre';
+                const nombreProd = p.nombre || p.nombre_producto || p.titulo || 'Producto sin nombre';
                 const descProd = p.descripcion || p.detalle || 'Sin descripción disponible';
-                const comercioProd = p.comercio_email || p.comercio || p.dueno_email || 'Comercio General';
+                const comercioProd = p.comercio_email || p.dueno_email || p.duenio_email || p.comercio || 'Comercio General';
                 const precioProd = p.precio || p.costo || 0;
                 const stockProd = p.stock !== undefined ? p.stock : (p.cantidad_stock || 0);
-                const imagenProd = p.imagen || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3';
+                const imagenProd = p.imagen || p.imagen_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3';
 
                 const productoLimpio = {
                     id: p.id,
@@ -384,7 +384,7 @@
             const { data } = await supabaseClient.from('vendedores_comercio').select('*');
             if (data) {
                 data.forEach(v => {
-                    const c = v.comercio || v.dueno_email || v.comercio_email;
+                    const c = v.comercio || v.dueno_email || v.duenio_email || v.comercio_email;
                     if (c && c !== 'Global' && c !== 'N/A') comerciosSet.add(c);
                 });
             }
@@ -518,7 +518,7 @@
                         nombre: v.nombre,
                         email: v.email,
                         rol: v.rol || 'Vendedor',
-                        comercio: v.comercio || v.dueno_email || v.comercio_email || 'Sin comercio',
+                        comercio: v.comercio || v.dueno_email || v.duenio_email || v.comercio_email || 'Sin comercio',
                         telefono: v.telefono || 'N/A',
                         activo: v.activo
                     });
@@ -651,6 +651,7 @@
 
             const datosUsuario = {
                 dueno_email: comercio,
+                duenio_email: comercio,
                 comercio_email: comercio,
                 comercio: comercio,
                 nombre: nombre,
@@ -701,9 +702,13 @@
             }
         }
 
+        // --- FUNCIÓN BLINDADA PARA GUARDAR PRODUCTO ---
         function adminGuardarProducto(e) {
             e.preventDefault();
-            const comercio_email = document.getElementById('adm-comercio').value;
+            let comercio_email = document.getElementById('adm-comercio')?.value;
+            if (!comercio_email) {
+                comercio_email = (usuarioActual && usuarioActual.email) ? usuarioActual.email : 'negocio.01@gmail.com';
+            }
             const nombre = document.getElementById('adm-nombre').value;
             const precio = parseFloat(document.getElementById('adm-precio').value);
             const stock = parseInt(document.getElementById('adm-stock').value);
@@ -714,16 +719,22 @@
                 const reader = new FileReader();
                 reader.onload = async function(uploadEvent) {
                     const imagenBase64 = uploadEvent.target.result;
-                    // AQUÍ ESTÁ LA CLAVE: Enviamos tanto comercio_email como dueno_email para satisfacer la tabla de Supabase
-                    const { error } = await supabaseClient.from('productos_marketplace').insert([{ 
+                    
+                    // Enviamos todas las posibles variantes de nombres de columnas para evitar cualquier conflicto con Supabase
+                    const payloadProducto = {
                         comercio_email: comercio_email,
-                        dueno_email: comercio_email, 
-                        nombre: nombre, 
-                        precio: precio, 
-                        stock: stock, 
-                        imagen: imagenBase64, 
-                        descripcion: descripcion 
-                    }]);
+                        dueno_email: comercio_email,
+                        duenio_email: comercio_email,
+                        nombre: nombre,
+                        nombre_producto: nombre,
+                        precio: precio,
+                        stock: stock,
+                        imagen: imagenBase64,
+                        imagen_url: imagenBase64,
+                        descripcion: descripcion
+                    };
+
+                    const { error } = await supabaseClient.from('productos_marketplace').insert([payloadProducto]);
                     if (error) {
                         alert('Error al guardar: ' + error.message);
                     } else {
@@ -809,7 +820,7 @@
             `;
         }
 
-        // --- PANEL DE DUEÑO DE NEGOCIO ( CON BARRA LATERAL ) ---
+        // --- PANEL DE DUEÑO DE NEGOCIO ---
         function renderizarPanelDueno(duenoObj) {
             const main = document.getElementById('main-content');
             const comercioId = duenoObj.comercio || duenoObj.email;
@@ -892,7 +903,7 @@
                             </div>
                         </div>
 
-                        <!-- Órdenes Pendientes por Asignar / Vendedores Ocupados -->
+                        <!-- Órdenes Pendientes por Asignar -->
                         <div id="alerta-ordenes-pendientes" class="bg-amber-50 border border-amber-200 p-4 rounded-2xl hidden">
                             <h4 class="font-bold text-amber-800 text-sm mb-1">⚠️ Órdenes sin Vendedor Activo / Pendientes por Asignar</h4>
                             <p class="text-xs text-amber-700 mb-2">Hay órdenes registradas donde los vendedores estaban ocupados o inactivos. Puedes reasignarlas o gestionarlas aquí:</p>
@@ -978,20 +989,27 @@
 
         async function cargarCatalogoDueno() {
             const comercioId = datosSesionRol.comercio || datosSesionRol.email;
-            const { data } = await supabaseClient.from('productos_marketplace').select('*').eq('comercio_email', comercioId);
+            const { data } = await supabaseClient.from('productos_marketplace').select('*');
             const container = document.getElementById('catalogo-stock-container');
             if (!container) return;
-            if (!data || data.length === 0) {
-                container.innerHTML = `<p class="text-slate-500">No hay productos en tu inventario. El administrador global puede cargarte productos.</p>`;
+            
+            // Filtrar productos del comercio actual
+            const misProductos = data ? data.filter(p => {
+                const c = p.comercio_email || p.dueno_email || p.duenio_email;
+                return c === comercioId;
+            }) : [];
+
+            if (misProductos.length === 0) {
+                container.innerHTML = `<p class="text-slate-500">No hay productos en tu inventario.</p>`;
                 return;
             }
             container.innerHTML = `
                 <div class="space-y-3">
-                    ${data.map(p => {
-                        const nombreProd = p.nombre || p.titulo || p.nombre_producto || 'Producto';
+                    ${misProductos.map(p => {
+                        const nombreProd = p.nombre || p.nombre_producto || p.titulo || 'Producto';
                         const precioProd = p.precio || p.costo || 0;
                         const stockProd = p.stock !== undefined ? p.stock : 0;
-                        const imagenProd = p.imagen || '';
+                        const imagenProd = p.imagen || p.imagen_url || '';
                         return `
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border border-slate-100 bg-slate-50/50 p-4 rounded-xl gap-4">
                                 <div class="flex items-center space-x-3">
@@ -1191,7 +1209,7 @@
             }
 
             let filtradas = data.filter(o => {
-                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busquerdo); // fixed typo internally if any
+                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
                 let matchFecha = !fechaFiltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
                 return matchBusqueda && matchFecha;
             });
