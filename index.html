@@ -714,8 +714,10 @@
                 const reader = new FileReader();
                 reader.onload = async function(uploadEvent) {
                     const imagenBase64 = uploadEvent.target.result;
+                    // AQUÍ ESTÁ LA CLAVE: Enviamos tanto comercio_email como dueno_email para satisfacer la tabla de Supabase
                     const { error } = await supabaseClient.from('productos_marketplace').insert([{ 
                         comercio_email: comercio_email,
+                        dueno_email: comercio_email, 
                         nombre: nombre, 
                         precio: precio, 
                         stock: stock, 
@@ -1189,7 +1191,7 @@
             }
 
             let filtradas = data.filter(o => {
-                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
+                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busquerdo); // fixed typo internally if any
                 let matchFecha = !fechaFiltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
                 return matchBusqueda && matchFecha;
             });
