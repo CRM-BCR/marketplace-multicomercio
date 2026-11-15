@@ -130,18 +130,36 @@
                 grid.innerHTML = `<p class="text-center col-span-3 text-slate-500 bg-white p-8 rounded-xl shadow-sm border border-slate-100">No hay productos disponibles en este momento.</p>`;
                 return;
             }
-            grid.innerHTML = data.map(p => `
-                <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
-                    <div>
-                        <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full">${p.comercio_email || 'Comercio General'}</span>
-                        <h3 class="font-bold text-lg text-slate-900 mt-3">${p.nombre}</h3>
-                        <p class="text-slate-600 text-sm mt-1">${p.descripcion || 'Sin descripción disponible'}</p>
-                        <p class="text-indigo-600 font-extrabold text-2xl mt-4">$${p.precio}</p>
-                        <p class="text-xs text-slate-400 mt-1">Stock disponible: ${p.stock}</p>
+            grid.innerHTML = data.map(p => {
+                // Validación robusta para leer cualquiera de los nombres posibles de columnas
+                const nombreProd = p.nombre || p.titulo || p.nombre_producto || 'Producto sin nombre';
+                const descProd = p.descripcion || p.detalle || 'Sin descripción disponible';
+                const comercioProd = p.comercio_email || p.comercio || 'Comercio General';
+                const precioProd = p.precio || p.costo || 0;
+                const stockProd = p.stock !== undefined ? p.stock : (p.cantidad_stock || 0);
+
+                const productoLimpio = {
+                    id: p.id,
+                    nombre: nombreProd,
+                    precio: precioProd,
+                    stock: stockProd,
+                    comercio_email: comercioProd,
+                    descripcion: descProd
+                };
+
+                return `
+                    <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full">${comercioProd}</span>
+                            <h3 class="font-bold text-lg text-slate-900 mt-3">${nombreProd}</h3>
+                            <p class="text-slate-600 text-sm mt-1">${descProd}</p>
+                            <p class="text-indigo-600 font-extrabold text-2xl mt-4">$${precioProd}</p>
+                            <p class="text-xs text-slate-400 mt-1">Stock disponible: ${stockProd}</p>
+                        </div>
+                        <button onclick='agregarAlCarrito(${JSON.stringify(productoLimpio)})' class="mt-5 w-full bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Agregar al Carrito</button>
                     </div>
-                    <button onclick='agregarAlCarrito(${JSON.stringify(p)})' class="mt-5 w-full bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Agregar al Carrito</button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function agregarAlCarrito(producto) {
@@ -233,7 +251,6 @@
 
             await supabaseClient.from('pedidos_marketplace').insert([datosPedido]);
 
-            // Formación del mensaje completo para WhatsApp con cantidades, detalle, nombre y total
             let textoMensaje = `Hola, te escribo para concretar mi orden N° ${numeroOrden}.\n\n` +
                 `👤 *Cliente:* ${nombre}\n` +
                 `📱 *Teléfono:* ${telefono}\n\n` +
@@ -516,19 +533,24 @@
             }
             container.innerHTML = `
                 <div class="space-y-3">
-                    ${data.map(p => `
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border border-slate-100 bg-slate-50/50 p-4 rounded-xl gap-4">
-                            <div>
-                                <h4 class="font-bold text-slate-900">${p.nombre}</h4>
-                                <p class="text-xs text-slate-500">Precio: $${p.precio} | Stock actual: <span class="font-bold text-indigo-600">${p.stock}</span></p>
+                    ${data.map(p => {
+                        const nombreProd = p.nombre || p.titulo || p.nombre_producto || 'Producto';
+                        const precioProd = p.precio || p.costo || 0;
+                        const stockProd = p.stock !== undefined ? p.stock : 0;
+                        return `
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border border-slate-100 bg-slate-50/50 p-4 rounded-xl gap-4">
+                                <div>
+                                    <h4 class="font-bold text-slate-900">${nombreProd}</h4>
+                                    <p class="text-xs text-slate-500">Precio: $${precioProd} | Stock actual: <span class="font-bold text-indigo-600">${stockProd}</span></p>
+                                </div>
+                                <div class="flex items-center space-x-2 w-full sm:w-auto">
+                                    <input type="number" id="input-stock-${p.id}" value="${stockProd}" class="w-24 border border-slate-300 p-1.5 rounded-lg text-sm bg-white">
+                                    <button onclick="actualizarStockDueno('${p.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Guardar Stock</button>
+                                    <button onclick="eliminarProductoDueno('${p.id}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Eliminar</button>
+                                </div>
                             </div>
-                            <div class="flex items-center space-x-2 w-full sm:w-auto">
-                                <input type="number" id="input-stock-${p.id}" value="${p.stock}" class="w-24 border border-slate-300 p-1.5 rounded-lg text-sm bg-white">
-                                <button onclick="actualizarStockDueno('${p.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Guardar Stock</button>
-                                <button onclick="eliminarProductoDueno('${p.id}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Eliminar</button>
-                            </div>
-                        </div>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </div>
             `;
         }
@@ -751,7 +773,7 @@
 
             let filtradas = data.filter(o => {
                 let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
-                let matchFecha = !fechaFiltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
+                let matchFecha = !fechaFilltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
                 return matchBusqueda && matchFecha;
             });
 
