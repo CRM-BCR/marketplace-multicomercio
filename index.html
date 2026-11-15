@@ -131,7 +131,6 @@
                 return;
             }
             grid.innerHTML = data.map(p => {
-                // Validación robusta para leer cualquiera de los nombres posibles de columnas
                 const nombreProd = p.nombre || p.titulo || p.nombre_producto || 'Producto sin nombre';
                 const descProd = p.descripcion || p.detalle || 'Sin descripción disponible';
                 const comercioProd = p.comercio_email || p.comercio || 'Comercio General';
@@ -773,7 +772,7 @@
 
             let filtradas = data.filter(o => {
                 let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
-                let matchFecha = !fechaFilltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
+                let matchFecha = !fechaFiltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
                 return matchBusqueda && matchFecha;
             });
 
