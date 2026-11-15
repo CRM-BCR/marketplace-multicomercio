@@ -716,7 +716,6 @@
                     const imagenBase64 = uploadEvent.target.result;
                     const { error } = await supabaseClient.from('productos_marketplace').insert([{ 
                         comercio_email: comercio_email,
-                        dueno_email: comercio_email, // Incluido para cumplir con la restricción NOT NULL
                         nombre: nombre, 
                         precio: precio, 
                         stock: stock, 
