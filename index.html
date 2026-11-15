@@ -320,7 +320,6 @@
 
             const datosPedido = {
                 numero_orden: numeroOrden,
-                numero: numeroOrden,
                 comercio_email: comercioEmail,
                 dueno_email: comercioEmail,
                 duenio_email: comercioEmail,
@@ -328,11 +327,9 @@
                 cliente_nombre: nombre,
                 cliente_telefono: telefono,
                 vendedor_email: vendedorEmailStr,
-                vendedor: vendedorEmailStr,
                 productos: carrito,
                 total: totalPedido,
                 estatus: 'Pendiente',
-                estado: 'Pendiente',
                 terminos_aceptados: true
             };
 
@@ -489,7 +486,10 @@
                             </div>
                         </div>
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                            <h3 class="text-xl font-bold mb-4 text-slate-900">Auditoría Global de Órdenes y T&C</h3>
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-bold text-slate-900">Auditoría Global de Órdenes y T&C</h3>
+                                <button onclick="eliminarTodasLasOrdenes()" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-rose-700 transition">🗑️ Limpiar Todas las Órdenes</button>
+                            </div>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <input type="text" id="adm-search" placeholder="Buscar por orden, teléfono o cliente..." class="border border-slate-300 p-2.5 rounded-xl text-sm" oninput="cargarAuditoriaAdmin()">
                                 <select id="adm-filtro-comercio" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarAuditoriaAdmin()">
@@ -829,6 +829,41 @@
             }
         }
 
+        async function eliminarOrdenSupabase(id) {
+            if (confirm('¿Estás seguro de eliminar esta orden?')) {
+                const { error } = await supabaseClient.from('pedidos_marketplace').delete().eq('id', id);
+                if (error) {
+                    alert('Error al eliminar orden: ' + error.message);
+                } else {
+                    alert('Orden eliminada con éxito');
+                    if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
+                        cargarEstadisticasDueno();
+                    } else {
+                        cargarAuditoriaAdmin();
+                    }
+                }
+            }
+        }
+
+        async function eliminarTodasLasOrdenes() {
+            if (confirm('¿Estás seguro de eliminar TODAS las órdenes del sistema? Esta acción limpiará los registros antiguos.')) {
+                const { data: todas } = await supabaseClient.from('pedidos_marketplace').select('id');
+                if (todas && todas.length > 0) {
+                    for (const o of todas) {
+                        await supabaseClient.from('pedidos_marketplace').delete().eq('id', o.id);
+                    }
+                    alert('Todas las órdenes han sido eliminadas.');
+                    if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
+                        cargarEstadisticasDueno();
+                    } else {
+                        cargarAuditoriaAdmin();
+                    }
+                } else {
+                    alert('No hay órdenes para eliminar.');
+                }
+            }
+        }
+
         async function cargarAuditoriaAdmin() {
             const busqueda = document.getElementById('adm-search')?.value.toLowerCase() || '';
             const comercioFiltro = document.getElementById('adm-filtro-comercio')?.value || '';
@@ -852,7 +887,7 @@
             }
 
             let filtrados = data.filter(o => {
-                let numOrden = o.numero_orden || o.numero || '';
+                let numOrden = o.numero_orden || o.id.substring(0, 8);
                 let matchBusqueda = !busqueda || numOrden.toLowerCase().includes(busqueda) || (o.cliente_telefono && o.cliente_telefono.toLowerCase().includes(busqueda)) || (o.cliente_nombre && o.cliente_nombre.toLowerCase().includes(busqueda));
                 let fechaStr = o.created_at || o.fecha_creacion || '';
                 let matchFecha = !fechaFiltro || (fechaStr && fechaStr.startsWith(fechaFiltro));
@@ -880,9 +915,9 @@
                     </thead>
                     <tbody>
                         ${filtrados.map(o => {
-                            const numOrden = o.numero_orden || o.numero || 'ORD-000';
-                            const estatusOrden = o.estatus || o.estado || 'Pendiente';
-                            const vendedorOrden = o.vendedor_email || o.vendedor || 'Sin asignar';
+                            const numOrden = o.numero_orden && o.numero_orden !== 'undefined' ? o.numero_orden : 'ORD-' + o.id.substring(0, 6);
+                            const estatusOrden = o.estatus || 'Pendiente';
+                            const vendedorOrden = o.vendedor_email && o.vendedor_email !== 'undefined' ? o.vendedor_email : 'Sin asignar';
                             return `
                                 <tr class="border-b border-slate-100">
                                     <td class="p-3 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${numOrden}</button></td>
@@ -892,7 +927,10 @@
                                     <td class="p-3">${vendedorOrden}</td>
                                     <td class="p-3 font-semibold">$${o.total || 0}</td>
                                     <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${estatusOrden === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : estatusOrden === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${estatusOrden}</span></td>
-                                    <td class="p-3"><button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">PDF T&C</button></td>
+                                    <td class="p-3 space-x-2">
+                                        <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">PDF T&C</button>
+                                        <button onclick="eliminarOrdenSupabase('${o.id}')" class="bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Eliminar</button>
+                                    </td>
                                 </tr>
                             `;
                         }).join('')}
@@ -994,6 +1032,10 @@
                                 <p class="text-slate-500 text-sm">Ventas Cerradas</p>
                                 <h4 class="text-2xl font-bold text-purple-600" id="stat-cerradas">0</h4>
                             </div>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button onclick="eliminarTodasLasOrdenes()" class="bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-rose-700 transition shadow-sm">🗑️ Limpiar / Eliminar Todas las Órdenes</button>
                         </div>
 
                         <div id="alerta-ordenes-pendientes" class="bg-amber-50 border border-amber-200 p-4 rounded-2xl hidden">
@@ -1213,10 +1255,10 @@
                 return cEmail === comercioId || dEmail === comercioId || dnEmail === comercioId || com === comercioId || cEmail.includes('polar') || comercioId.includes('polar') || true;
             });
 
-            let ventasTotalesCerradas = pedidos.filter(p => (p.estatus || p.estado) === 'Concretado').length;
-            let ingresosTotales = pedidos.filter(p => (p.estatus || p.estado) === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
-            let ventasAbiertas = pedidos.filter(p => (p.estatus || p.estado) === 'Pendiente' || !(p.estatus || p.estado)).length;
-            let ventasCerradas = pedidos.filter(p => (p.estatus || p.estado) === 'Concretado' || (p.estatus || p.estado) === 'No Concretado').length;
+            let ventasTotalesCerradas = pedidos.filter(p => p.estatus === 'Concretado').length;
+            let ingresosTotales = pedidos.filter(p => p.estatus === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
+            let ventasAbiertas = pedidos.filter(p => p.estatus === 'Pendiente' || !p.estatus).length;
+            let ventasCerradas = pedidos.filter(p => p.estatus === 'Concretado' || p.estatus === 'No Concretado').length;
 
             const statTotalesEl = document.getElementById('stat-totales');
             const statIngresosEl = document.getElementById('stat-ingresos');
@@ -1229,8 +1271,8 @@
             if (statCerradasEl) statCerradasEl.innerText = ventasCerradas;
 
             const ordenesSinAsignar = pedidos.filter(p => {
-                let vend = p.vendedor_email || p.vendedor || '';
-                let est = p.estatus || p.estado || 'Pendiente';
+                let vend = p.vendedor_email || '';
+                let est = p.estatus || 'Pendiente';
                 return (!vend || vend === 'Sin asignar' || vend === 'undefined') && est === 'Pendiente';
             });
             const alertaBox = document.getElementById('alerta-ordenes-pendientes');
@@ -1251,14 +1293,14 @@
                         </thead>
                         <tbody>
                             ${ordenesSinAsignar.map(o => {
-                                const numOrden = o.numero_orden || o.numero || 'ORD-000';
+                                const numOrden = o.numero_orden && o.numero_orden !== 'undefined' ? o.numero_orden : 'ORD-' + o.id.substring(0, 6);
                                 return `
                                     <tr class="border-b border-amber-200">
                                         <td class="p-2 font-bold"><button onclick='verDetalleOrdenModal(${JSON.stringify(o)})' class="text-indigo-600 hover:underline">${numOrden}</button></td>
                                         <td class="p-2">${o.cliente_nombre || 'N/A'}</td>
                                         <td class="p-2">${o.cliente_telefono || 'N/A'}</td>
                                         <td class="p-2 font-semibold">$${o.total || 0}</td>
-                                        <td class="p-2"><button onclick="asignarVendedorOrdenModal('${o.id}', '${numOrden}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-semibold">Asignar Vendedor</button></td>
+                                        <td class="p-2"><button onclick="asignarVendedorOrdenModal('${o.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-semibold">Asignar Vendedor</button></td>
                                     </tr>
                                 `;
                             }).join('')}
@@ -1273,12 +1315,12 @@
             const fechaFiltro = document.getElementById('dueno-fecha')?.value || '';
 
             let filtradas = pedidos.filter(o => {
-                let est = o.estatus || o.estado || 'Pendiente';
+                let est = o.estatus || 'Pendiente';
                 let matchFiltro = true;
                 if (filtroVentasActual === 'Pendiente') matchFiltro = (est === 'Pendiente');
                 if (filtroVentasActual === 'Cerradas') matchFiltro = (est === 'Concretado' || est === 'No Concretado');
 
-                let numOrden = o.numero_orden || o.numero || '';
+                let numOrden = o.numero_orden || o.id.substring(0, 8);
                 let matchBusqueda = !busqueda || numOrden.toLowerCase().includes(busqueda) || (o.cliente_telefono && o.cliente_telefono.toLowerCase().includes(busqueda)) || (o.cliente_nombre && o.cliente_nombre.toLowerCase().includes(busqueda));
                 let fechaStr = o.created_at || o.fecha_creacion || '';
                 let matchFecha = !fechaFiltro || (fechaStr && fechaStr.startsWith(fechaFiltro));
@@ -1305,9 +1347,9 @@
                     </thead>
                     <tbody>
                         ${filtradas.map(o => {
-                            const numOrden = o.numero_orden || o.numero || 'ORD-000';
-                            const est = o.estatus || o.estado || 'Pendiente';
-                            const vend = o.vendedor_email || o.vendedor || 'Sin asignar';
+                            const numOrden = o.numero_orden && o.numero_orden !== 'undefined' ? o.numero_orden : 'ORD-' + o.id.substring(0, 6);
+                            const est = o.estatus || 'Pendiente';
+                            const vend = o.vendedor_email && o.vendedor_email !== 'undefined' ? o.vendedor_email : 'Sin asignar';
                             const fechaOrden = o.created_at ? new Date(o.created_at).toLocaleString() : (o.fecha_creacion ? new Date(o.fecha_creacion).toLocaleString() : 'Reciente');
                             return `
                                 <tr class="border-b border-slate-100">
@@ -1318,9 +1360,10 @@
                                     <td class="p-3 font-semibold">$${o.total || 0}</td>
                                     <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${est === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : est === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${est}</span></td>
                                     <td class="p-3 space-x-1">
-                                        <button onclick="cambiarEstatusOrden('${o.id}', '${numOrden}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
-                                        <button onclick="cambiarEstatusOrden('${o.id}', '${numOrden}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
+                                        <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
+                                        <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
                                         <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
+                                        <button onclick="eliminarOrdenSupabase('${o.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Eliminar</button>
                                     </td>
                                 </tr>
                             `;
@@ -1335,9 +1378,9 @@
             const titulo = document.getElementById('modal-orden-titulo');
             const contenido = document.getElementById('modal-orden-contenido');
 
-            const numOrden = orden.numero_orden || orden.numero || 'ORD-000';
-            const est = orden.estatus || orden.estado || 'Pendiente';
-            const vend = orden.vendedor_email || orden.vendedor || 'Sin asignar';
+            const numOrden = orden.numero_orden && orden.numero_orden !== 'undefined' ? orden.numero_orden : 'ORD-' + orden.id.substring(0, 6);
+            const est = orden.estatus || 'Pendiente';
+            const vend = orden.vendedor_email && orden.vendedor_email !== 'undefined' ? orden.vendedor_email : 'Sin asignar';
             titulo.innerText = `Detalles de la Orden: ${numOrden}`;
             const fechaOrden = orden.created_at ? new Date(orden.created_at).toLocaleString() : (orden.fecha_creacion ? new Date(orden.fecha_creacion).toLocaleString() : 'Reciente');
             
@@ -1386,7 +1429,7 @@
             document.getElementById('modal-detalle-orden').classList.add('hidden');
         }
 
-        async function asignarVendedorOrdenModal(idOrden, numOrden) {
+        async function asignarVendedorOrdenModal(idOrden) {
             const comercioId = datosSesionRol.comercio || datosSesionRol.email || 'polar';
             const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*');
             
@@ -1407,14 +1450,7 @@
                 if (misVendedores[index]) {
                     let vendedorElegido = misVendedores[index].email;
                     
-                    let query = supabaseClient.from('pedidos_marketplace').update({ vendedor_email: vendedorElegido, vendedor: vendedorElegido });
-                    if (idOrden && idOrden !== 'undefined') {
-                        query = query.eq('id', idOrden);
-                    } else if (numOrden) {
-                        query = query.eq('numero_orden', numOrden);
-                    }
-
-                    const { error } = await query;
+                    const { error } = await supabaseClient.from('pedidos_marketplace').update({ vendedor_email: vendedorElegido }).eq('id', idOrden);
                     if (error) {
                         alert('Error al asignar vendedor: ' + error.message);
                     } else {
@@ -1427,15 +1463,8 @@
             }
         }
 
-        async function cambiarEstatusOrden(idOrden, numOrden, nuevoEstatus) {
-            let query = supabaseClient.from('pedidos_marketplace').update({ estatus: nuevoEstatus, estado: nuevoEstatus });
-            if (idOrden && idOrden !== 'undefined') {
-                query = query.eq('id', idOrden);
-            } else if (numOrden) {
-                query = query.eq('numero_orden', numOrden);
-            }
-
-            const { error } = await query;
+        async function cambiarEstatusOrden(idOrden, nuevoEstatus) {
+            const { error } = await supabaseClient.from('pedidos_marketplace').update({ estatus: nuevoEstatus }).eq('id', idOrden);
             if (error) {
                 alert('Error al actualizar estatus: ' + error.message);
             } else {
@@ -1451,9 +1480,9 @@
         function descargarPDFOrden(orden) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            const numOrden = orden.numero_orden || orden.numero || 'ORD-000';
-            const est = orden.estatus || orden.estado || 'Pendiente';
-            const vend = orden.vendedor_email || orden.vendedor || 'Sin asignar';
+            const numOrden = orden.numero_orden && orden.numero_orden !== 'undefined' ? orden.numero_orden : 'ORD-' + orden.id.substring(0, 6);
+            const est = orden.estatus || 'Pendiente';
+            const vend = orden.vendedor_email && orden.vendedor_email !== 'undefined' ? orden.vendedor_email : 'Sin asignar';
             const fechaOrden = orden.created_at ? new Date(orden.created_at).toLocaleString() : (orden.fecha_creacion ? new Date(orden.fecha_creacion).toLocaleString() : 'Reciente');
 
             doc.setFont("helvetica", "bold");
