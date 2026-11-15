@@ -21,7 +21,7 @@
 </head>
 <body class="bg-zinc-950 text-zinc-100 font-sans antialiased min-h-screen flex flex-col">
 
-    <!-- BARRA SUPERIOR / NAVEGACIÓN PÚBLICA -->
+    <!-- BARRA SUPERIOR / NAVEGACIÓN PÚBLica -->
     <header class="bg-zinc-900 border-b border-zinc-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center space-x-3">
             <div class="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-red-600/30">
@@ -59,7 +59,6 @@
             </div>
         </div>
 
-        <!-- LISTADO DE PRODUCTOS DISPONIBLES POR COMERCIO -->
         <section class="space-y-4">
             <h3 class="text-sm font-bold uppercase tracking-wider text-zinc-400 flex items-center space-x-2">
                 <i class="fa-solid fa-boxes-stacked text-red-500"></i>
@@ -71,7 +70,7 @@
         </section>
     </main>
 
-    <!-- MODAL DE LOGIN / ACCESO RESTRINGIDO -->
+    <!-- MODAL DE LOGIN -->
     <div id="modal-login" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/90 p-4 backdrop-blur-sm">
         <div class="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl shadow-2xl w-full max-w-md relative">
             <button onclick="cerrarModalLogin()" class="absolute top-6 right-6 text-zinc-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -98,7 +97,7 @@
         </div>
     </div>
 
-    <!-- MODAL DEL CARRITO DE COMPRAS -->
+    <!-- MODAL DEL CARRITO -->
     <div id="modal-carrito" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4">
         <div class="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl w-full max-w-xl space-y-5 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
             <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
@@ -138,7 +137,7 @@
         </div>
     </div>
 
-    <!-- PANEL DE GESTIÓN PRIVADO (DUEÑOS, VENDEDORES, ADMIN) -->
+    <!-- PANEL PRIVADO -->
     <div id="panel-privado" class="hidden fixed inset-0 z-50 bg-zinc-950 flex flex-col md:flex-row overflow-hidden">
         <aside class="w-full md:w-64 bg-zinc-900 border-r border-zinc-800 p-5 flex flex-col justify-between">
             <div>
@@ -152,7 +151,7 @@
                     </div>
                 </div>
                 <nav id="menu-privado-nav" class="space-y-1">
-                    <!-- Dinámico según rol -->
+                    <!-- Dinámico -->
                 </nav>
             </div>
             <button onclick="cerrarSesionPrivada()" class="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-semibold transition cursor-pointer">
@@ -161,7 +160,7 @@
         </aside>
 
         <main class="flex-1 p-6 md:p-8 overflow-y-auto custom-scrollbar bg-zinc-900/40" id="contenido-privado-dinamico">
-            <!-- Contenido inyectado dinámicamente -->
+            <!-- Contenido inyectado -->
         </main>
     </div>
 
@@ -184,10 +183,7 @@
 
         async function cargarProductosPublicos() {
             const { data, error } = await _supabase.from('productos_marketplace').select('*');
-            if (error) {
-                console.error("Error cargando productos:", error);
-                return;
-            }
+            if (error) { console.error("Error cargando productos:", error); return; }
             productosGlobal = data || [];
             renderizarProductosPublicos(productosGlobal);
         }
@@ -281,7 +277,6 @@
         function cerrarCarrito() { document.getElementById('modal-carrito').classList.add('hidden'); }
         function eliminarItemCarrito(idx) { carritoGlobal.splice(idx, 1); actualizarContadorCarrito(); abrirCarrito(); }
 
-        // PROCESAMIENTO DE PEDIDO Y ASIGNACIÓN EQUITATIVA (ROUND-ROBIN) A VENDEDORES
         async function procesarPedidoMarketplace() {
             const nombreCliente = document.getElementById('cliente-nombre-pedido').value.trim();
             const telefonoCliente = document.getElementById('cliente-telefono-pedido').value.trim();
@@ -334,6 +329,12 @@
 
                 await _supabase.from('pedidos_marketplace').insert([nuevoPedido]);
 
+                // Descontar stock automáticamente de los productos comprados
+                for (const item of itemsComercio) {
+                    const nuevoStock = Math.max(0, item.stock - item.cantidad);
+                    await _supabase.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', item.id);
+                }
+
                 if (vendedorAsignado) {
                     const detalleTexto = itemsComercio.map(i => `- ${i.cantidad}x ${i.nombre_producto} ($${i.precio})`).join('%0A');
                     const mensajeWhatsApp = `Hola! Nuevo pedido Ticket #${nroTicket}%0A*Cliente:* ${nombreCliente}%0A*Teléfono:* ${telefonoCliente}%0A*Productos:*%0A${detalleTexto}%0A*Total:* $${totalComercio.toFixed(2)}%0A%0APor favor gestionar el envío y pago.`;
@@ -346,6 +347,7 @@
             carritoGlobal = [];
             actualizarContadorCarrito();
             cerrarCarrito();
+            cargarProductosPublicos();
         }
 
         function abrirModalLogin() { document.getElementById('modal-login').classList.remove('hidden'); }
@@ -399,38 +401,129 @@
             document.getElementById('panel-privado').classList.remove('hidden');
 
             const nav = document.getElementById('menu-privado-nav');
-            if (user.rol === 'DUEÑO_NEGOCIO' || user.rol === 'ADMINISTRADOR') {
+            if (user.rol === 'ADMINISTRADOR') {
+                nav.innerHTML = `
+                    <button onclick="renderPanelAdmin('cargar-producto')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-plus-circle mr-2 text-red-500"></i> Cargar / Actualizar Producto</button>
+                    <button onclick="renderPanelAdmin('ver-todos')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-boxes-stacked mr-2 text-red-500"></i> Catálogo Global</button>
+                `;
+                renderPanelAdmin('cargar-producto');
+            } else if (user.rol === 'DUEÑO_NEGOCIO') {
                 nav.innerHTML = `
                     <button onclick="renderPanelDuenioNegocio('catalogo')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-box mr-2 text-red-500"></i> Mi Catálogo & Stock</button>
                     <button onclick="renderPanelDuenioNegocio('vendedores')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-users mr-2 text-red-500"></i> Gestionar Vendedores</button>
                     <button onclick="renderPanelDuenioNegocio('ventas')" class="w-full text-left px-4 py-3 rounded-xl text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition cursor-pointer"><i class="fa-solid fa-chart-line mr-2 text-red-500"></i> Ventas & Estadísticas</button>
                 `;
                 renderPanelDuenioNegocio('catalogo');
-            } else {
-                nav.innerHTML = `<p class="text-xs text-zinc-500 p-2">Panel de Administración General</p>`;
             }
         }
 
+        // PANEL EXCLUSIVO DEL ADMINISTRADOR PARA ASIGNAR PRODUCTOS A CUALQUIER COMERCIO
+        async function renderPanelAdmin(seccion) {
+            const contenedor = document.getElementById('contenido-privado-dinamico');
+            if (seccion === 'cargar-producto') {
+                contenedor.innerHTML = `
+                    <div class="space-y-6 max-w-4xl mx-auto">
+                        <h2 class="text-xl font-bold text-white">Panel Administrador: Carga de Productos a Comercios</h2>
+                        <div class="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 space-y-4 shadow-xl">
+                            <h3 class="text-sm font-bold text-red-400 uppercase">Seleccionar Comercio Destino y Cargar Producto</h3>
+                            
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Comercio Propietario del Producto</label>
+                                <select id="admin-duenio-select" class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-red-500">
+                                    <option value="negocio.01@gmail.com">negocio.01@gmail.com</option>
+                                    <option value="negocio.02@gmail.com">negocio.02@gmail.com</option>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Nombre del Producto</label>
+                                    <input type="text" id="admin-prod-nombre" placeholder="Ej. Camisa Deportiva" class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Precio ($)</label>
+                                    <input type="number" id="admin-prod-precio" placeholder="0.00" class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Stock Inicial</label>
+                                    <input type="number" id="admin-prod-stock" placeholder="Cantidad disponible" class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">URL de Imagen (Opcional)</label>
+                                    <input type="text" id="admin-prod-img" placeholder="https://..." class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase text-zinc-400 mb-1">Descripción</label>
+                                <textarea id="admin-prod-desc" placeholder="Detalles del producto..." class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white"></textarea>
+                            </div>
+                            <button onclick="adminGuardarProducto()" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg shadow-red-600/30">Cargar Producto al Comercio Seleccionado</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function adminGuardarProducto() {
+            const duenioEmail = document.getElementById('admin-duenio-select').value;
+            const nuevo = {
+                duenio_email: duenioEmail,
+                nombre_producto: document.getElementById('admin-prod-nombre').value,
+                precio: parseFloat(document.getElementById('admin-prod-precio').value),
+                stock: parseInt(document.getElementById('admin-prod-stock').value),
+                imagen_url: document.getElementById('admin-prod-img').value,
+                descripcion: document.getElementById('admin-prod-desc').value
+            };
+            const { error } = await _supabase.from('productos_marketplace').insert([nuevo]);
+            if (!error) {
+                alert(`¡Producto cargado con éxito para el comercio ${duenioEmail}!`);
+                document.getElementById('admin-prod-nombre').value = '';
+                document.getElementById('admin-prod-precio').value = '';
+                document.getElementById('admin-prod-stock').value = '';
+                document.getElementById('admin-prod-img').value = '';
+                document.getElementById('admin-prod-desc').value = '';
+                cargarProductosPublicos();
+            } else {
+                alert('Error al guardar producto: ' + error.message);
+            }
+        }
+
+        // PANEL DE DUEÑOS DE NEGOCIO (VER STOCK, AGREGAR UNIDADES O ELIMINAR)
         async function renderPanelDuenioNegocio(seccion) {
             const contenedor = document.getElementById('contenido-privado-dinamico');
             if (seccion === 'catalogo') {
+                const { data: productosPropios } = await _supabase.from('productos_marketplace').select('*').eq('duenio_email', usuarioActual.email);
                 contenedor.innerHTML = `
-                    <div class="space-y-6 max-w-4xl mx-auto">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-xl font-bold text-white">Gestión de Productos y Stock</h2>
-                        </div>
-                        <div class="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 space-y-4 shadow-xl">
-                            <h3 class="text-sm font-bold text-red-400 uppercase">Agregar Nuevo Producto al Catálogo</h3>
-                            <div class="grid grid-cols-2 gap-3">
-                                <input type="text" id="nuevo-prod-nombre" placeholder="Nombre del producto" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
-                                <input type="number" id="nuevo-prod-precio" placeholder="Precio ($)" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <input type="number" id="nuevo-prod-stock" placeholder="Stock disponible" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
-                                <input type="text" id="nuevo-prod-img" placeholder="URL de imagen (opcional)" class="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white">
-                            </div>
-                            <textarea id="nuevo-prod-desc" placeholder="Descripción breve..." class="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white"></textarea>
-                            <button onclick="guardarNuevoProducto()" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg shadow-red-600/30">Registrar Producto</button>
+                    <div class="space-y-6 max-w-5xl mx-auto">
+                        <h2 class="text-xl font-bold text-white">Mi Catálogo y Control de Stock</h2>
+                        <p class="text-xs text-zinc-400">Aquí puedes ver el stock cargado por el administrador, sumar más unidades o eliminar productos agotados.</p>
+                        
+                        <div class="bg-zinc-950 rounded-2xl border border-zinc-800 overflow-hidden shadow-xl">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-zinc-900 text-zinc-400 uppercase">
+                                    <tr><th class="p-3">Producto</th><th class="p-3">Precio</th><th class="p-3">Stock Actual</th><th class="p-3 text-center">Sumar Unidades</th><th class="p-3 text-center">Acción</th></tr>
+                                </thead>
+                                <tbody class="divide-y divide-zinc-800 text-zinc-300">
+                                    ${(productosPropios || []).map(p => `
+                                        <tr class="hover:bg-zinc-900/50 transition">
+                                            <td class="p-3 font-bold text-white">${p.nombre_producto}<br><span class="text-[10px] text-zinc-500 font-normal">${p.descripcion || ''}</span></td>
+                                            <td class="p-3 text-emerald-400 font-bold">$${Number(p.precio).toFixed(2)}</td>
+                                            <td class="p-3 font-mono font-bold ${p.stock <= 2 ? 'text-red-400' : 'text-white'}">${p.stock} unids.</td>
+                                            <td class="p-3 text-center">
+                                                <div class="inline-flex items-center space-x-1">
+                                                    <input type="number" id="sumar-stock-${p.id}" placeholder="Cant" min="1" class="w-16 p-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-white text-center">
+                                                    <button onclick="sumarStockProducto(${p.id}, ${p.stock})" class="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-bold cursor-pointer">+</button>
+                                                </div>
+                                            </td>
+                                            <td class="p-3 text-center">
+                                                <button onclick="eliminarProductoComercio(${p.id})" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg font-bold cursor-pointer">Eliminar</button>
+                                            </td>
+                                        </tr>
+                                    `).join('') || '<tr><td colspan="5" class="p-4 text-center text-zinc-500">No tienes productos en tu catálogo actualmente.</td></tr>'}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 `;
@@ -460,38 +553,55 @@
                     </div>
                 `;
             } else if (seccion === 'ventas') {
-                // Cargar datos reales con filtros de fecha/hora
                 const { data: pedidos } = await _supabase.from('pedidos_marketplace').select('*').eq('duenio_email', usuarioActual.email);
                 const { data: vendedores } = await _supabase.from('vendedores_comercio').select('*').eq('duenio_email', usuarioActual.email).eq('activo', true);
-
                 renderizarDashboardEstadisticasVentas(pedidos || [], vendedores || []);
+            }
+        }
+
+        async function sumarStockProducto(idProducto, stockActual) {
+            const input = document.getElementById(`sumar-stock-${idProducto}`);
+            const cantidadSumar = parseInt(input.value);
+            if (isNaN(cantidadSumar) || cantidadSumar <= 0) { alert('Ingresa una cantidad válida para sumar.'); return; }
+
+            const nuevoStock = stockActual + cantidadSumar;
+            const { error } = await _supabase.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', idProducto);
+            if (!error) {
+                alert(`¡Stock actualizado! Nuevo stock: ${nuevoStock}`);
+                renderPanelDuenioNegocio('catalogo');
+                cargarProductosPublicos();
+            } else {
+                alert('Error al actualizar stock: ' + error.message);
+            }
+        }
+
+        async function eliminarProductoComercio(idProducto) {
+            if (confirm('¿Estás seguro de eliminar este producto de tu catálogo?')) {
+                const { error } = await _supabase.from('productos_marketplace').delete().eq('id', idProducto);
+                if (!error) {
+                    alert('¡Producto eliminado con éxito!');
+                    renderPanelDuenioNegocio('catalogo');
+                    cargarProductosPublicos();
+                } else {
+                    alert('Error al eliminar: ' + error.message);
+                }
             }
         }
 
         async function renderizarDashboardEstadisticasVentas(pedidosOriginales, vendedoresList) {
             const contenedor = document.getElementById('contenido-privado-dinamico');
-            
-            // Filtros de fecha y hora
             const desde = document.getElementById('filtro-est-desde')?.value || '';
             const hasta = document.getElementById('filtro-est-hasta')?.value || '';
 
             let pedidos = pedidosOriginales;
-            if (desde) {
-                const d = new Date(desde);
-                pedidos = pedidos.filter(p => new Date(p.created_at) >= d);
-            }
-            if (hasta) {
-                const h = new Date(hasta);
-                pedidos = pedidos.filter(p => new Date(p.created_at) <= h);
-            }
+            if (desde) { const d = new Date(desde); pedidos = pedidos.filter(p => new Date(p.created_at) >= d); }
+            if (hasta) { const h = new Date(hasta); pedidos = pedidos.filter(p => new Date(p.created_at) <= h); }
 
-            // Métricas
             const totalPedidos = pedidos.length;
             const ventasEfectivas = pedidos.filter(p => p.estatus_pedido === 'CONCRETADO');
             const ventasEnProceso = pedidos.filter(p => p.estatus_pedido === 'PENDIENTE' || !p.estatus_pedido);
             const ingresosTotales = ventasEfectivas.reduce((acc, p) => acc + Number(p.total), 0);
 
-            // Estadísticas por vendedor
             const vendedoresStats = vendedoresList.map(v => {
                 const asig = pedidos.filter(p => p.vendedor_asignado_telefono === v.telefono || p.vendedor_asignado_email === v.email);
                 const efectivasVend = asig.filter(p => p.estatus_pedido === 'CONCRETADO');
@@ -512,7 +622,6 @@
                     <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                         <h2 class="text-xl font-bold text-white">Dashboard de Ventas y Rendimiento de Vendedores</h2>
                         
-                        <!-- FILTROS DE FECHA Y HORA -->
                         <div class="bg-zinc-950 p-3 rounded-2xl border border-zinc-800 flex flex-wrap items-center gap-3">
                             <div class="flex items-center space-x-2">
                                 <span class="text-[10px] font-bold uppercase text-zinc-400">Desde:</span>
@@ -526,7 +635,6 @@
                         </div>
                     </div>
 
-                    <!-- TARJETAS DE RESUMEN -->
                     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         <div class="bg-zinc-950 p-5 rounded-2xl border border-zinc-800 shadow-lg">
                             <span class="text-xs font-bold uppercase tracking-wider text-zinc-400">Total Pedidos</span>
@@ -546,7 +654,6 @@
                         </div>
                     </div>
 
-                    <!-- ESTADO Y RENDIMIENTO DE VENDEDORES -->
                     <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl">
                         <h3 class="text-sm font-bold uppercase text-red-400"><i class="fa-solid fa-headset mr-2"></i> Estado Actual y Ventas por Vendedor</h3>
                         <div class="overflow-x-auto">
@@ -577,7 +684,6 @@
                         </div>
                     </div>
 
-                    <!-- LISTADO DE PEDIDOS Y GESTIÓN DE ESTATUS -->
                     <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl">
                         <h3 class="text-sm font-bold uppercase text-zinc-300"><i class="fa-solid fa-list-check mr-2 text-red-500"></i> Historial de Pedidos y Gestión de Estatus</h3>
                         <div class="overflow-x-auto">
@@ -627,21 +733,6 @@
             } else {
                 alert('Error al actualizar estatus: ' + error.message);
             }
-        }
-
-        async function guardarNuevoProducto() {
-            const nuevo = {
-                duenio_email: usuarioActual.email,
-                nombre_producto: document.getElementById('nuevo-prod-nombre').value,
-                precio: parseFloat(document.getElementById('nuevo-prod-precio').value),
-                stock: parseInt(document.getElementById('nuevo-prod-stock').value),
-                imagen_url: document.getElementById('nuevo-prod-img').value,
-                descripcion: document.getElementById('nuevo-prod-desc').value
-            };
-            await _supabase.from('productos_marketplace').insert([nuevo]);
-            alert('¡Producto guardado con éxito!');
-            renderPanelDuenioNegocio('catalogo');
-            cargarProductosPublicos();
         }
 
         async function guardarVendedor() {
