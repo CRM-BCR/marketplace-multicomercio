@@ -124,12 +124,27 @@
                     </div>
                 </div>
 
+                <!-- SECCIÓN OBLIGATORIA: TÉRMINOS Y CONDICIONES DE SEGURIDAD -->
+                <div class="p-4 bg-zinc-950 border border-amber-500/30 rounded-2xl space-y-3">
+                    <p class="text-[11px] font-bold text-amber-400 text-center tracking-wide">
+                        ⚠️ Por favor asegúrate de leer los términos y condiciones antes de continuar ⚠️
+                    </p>
+                    <div class="p-3 bg-zinc-900 border border-zinc-800 rounded-xl text-[11px] text-zinc-300 leading-relaxed max-h-32 overflow-y-auto custom-scrollbar space-y-2">
+                        <p><strong>Aviso de Seguridad:</strong> Nuestra tienda solo opera a través de asesores asignados. Ningún asesor te pedirá pagos a cuentas personales no verificadas ni te contactará sin el número de tu Ticket oficial.</p>
+                        <p><strong>Exención y Responsabilidad:</strong> El cliente asume total y única responsabilidad si accede a dar información adicional fuera de los canales oficiales o si realiza pagos a terceros que no pertenezcan a la organización.</p>
+                    </div>
+                    <label class="flex items-start space-x-2.5 cursor-pointer pt-1">
+                        <input type="checkbox" id="check-terminos" onchange="toggleBotonWhatsApp()" class="mt-0.5 w-4 h-4 rounded accent-red-600 cursor-pointer">
+                        <span class="text-[11px] text-zinc-300 font-medium leading-tight">He leído, comprendido y acepto los términos y condiciones de seguridad y descargo de responsabilidad.</span>
+                    </label>
+                </div>
+
                 <div class="flex items-center justify-between bg-zinc-950 p-4 rounded-2xl border border-zinc-800">
                     <span class="text-xs font-bold uppercase text-zinc-400">Total General:</span>
                     <span id="carrito-total-general" class="text-xl font-extrabold text-emerald-400">$0.00</span>
                 </div>
 
-                <button onclick="procesarPedidoMarketplace()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-emerald-600/30 cursor-pointer flex items-center justify-center space-x-2">
+                <button id="btn-enviar-whatsapp" onclick="procesarPedidoMarketplace()" disabled class="w-full py-3.5 bg-zinc-800 text-zinc-500 font-bold rounded-xl text-xs transition cursor-not-allowed flex items-center justify-center space-x-2 shadow-none">
                     <i class="fa-brands fa-whatsapp text-lg"></i>
                     <span>Realizar Pedido y Enviar a WhatsApp</span>
                 </button>
@@ -290,9 +305,28 @@
             document.getElementById('badge-carrito').textContent = totalItems;
         }
 
+        function toggleBotonWhatsApp() {
+            const aceptado = document.getElementById('check-terminos').checked;
+            const btn = document.getElementById('btn-enviar-whatsapp');
+            if (aceptado) {
+                btn.disabled = false;
+                btn.classList.remove('bg-zinc-800', 'text-zinc-500', 'cursor-not-allowed', 'shadow-none');
+                btn.classList.add('bg-emerald-600', 'hover:bg-emerald-500', 'text-white', 'cursor-pointer', 'shadow-lg', 'shadow-emerald-600/30');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('bg-zinc-800', 'text-zinc-500', 'cursor-not-allowed', 'shadow-none');
+                btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500', 'text-white', 'cursor-pointer', 'shadow-lg', 'shadow-emerald-600/30');
+            }
+        }
+
         function abrirCarrito() {
             const contenedor = document.getElementById('contenedor-items-carrito');
             const totalGeneralEl = document.getElementById('carrito-total-general');
+            
+            const checkbox = document.getElementById('check-terminos');
+            if (checkbox) checkbox.checked = false;
+            toggleBotonWhatsApp();
+
             if (carritoGlobal.length === 0) {
                 contenedor.innerHTML = `<p class="text-zinc-500 text-xs text-center py-6">Tu carrito está vacío.</p>`;
                 totalGeneralEl.textContent = '$0.00';
@@ -326,6 +360,12 @@
         }
 
         async function procesarPedidoMarketplace() {
+            const checkbox = document.getElementById('check-terminos');
+            if (!checkbox.checked) {
+                alert('Debes leer y aceptar los términos y condiciones de seguridad para continuar.');
+                return;
+            }
+
             const nombreCliente = document.getElementById('cliente-nombre-pedido').value.trim();
             const telefonoCliente = document.getElementById('cliente-telefono-pedido').value.trim();
 
@@ -358,6 +398,16 @@
 
             const totalComercio = itemsComercio.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
 
+            // Documento de Términos y Condiciones casado con la orden, nombre y teléfono del cliente
+            const documentoTerminosAceptados = {
+                estado: "APROBADO Y ACEPTO",
+                fecha_aceptacion: new Date().toISOString(),
+                orden_asociada: `N°${nroTicket}`,
+                cliente_nombre: nombreCliente,
+                cliente_telefono: telefonoCliente,
+                clausula: "El cliente declara haber leído el aviso de seguridad de la tienda y asume total y única responsabilidad si accede a dar información adicional fuera de los canales oficiales o si realiza pagos a terceros que no pertenezcan a la organización."
+            };
+
             const nuevoPedido = {
                 nro_ticket: nroTicket,
                 duenio_email: duenioEmail,
@@ -368,6 +418,7 @@
                 vendedor_asignado_email: vendedorAsignado ? vendedorAsignado.email : 'Sin Vendedor Asignado',
                 vendedor_asignado_telefono: vendedorAsignado ? vendedorAsignado.telefono : '584120000000',
                 estatus_pedido: 'PENDIENTE',
+                terminos_aceptados_json: documentoTerminosAceptados, // Guardado integrado y casado con la orden
                 created_at: new Date().toISOString()
             };
 
@@ -379,23 +430,19 @@
             }
 
             if (vendedorAsignado && vendedorAsignado.telefono) {
-                // Construcción detallada del mensaje completo para WhatsApp
-                const detalleProductosTexto = itemsComercio.map(i => `• ${i.cantidad}x ${i.nombre_producto} - $${Number(i.precio).toFixed(2)} c/u (Subtotal: $${(i.precio * i.cantidad).toFixed(2)})`).join('\n');
+                const mensajeValidacion = `hola, te escribo para culminar el proceso de mi orden N°${nroTicket}`;
                 
-                const mensajeCompleto = `Hola! Nuevo pedido Ticket #${nroTicket}\n\n*Cliente:* ${nombreCliente}\n*Teléfono:* ${telefonoCliente}\n\n*Detalle del Carrito:* \n${detalleProductosTexto}\n\n*Monto Total:* $${totalComercio.toFixed(2)}\n\nPor favor gestionar el pago y envío.`;
-                
-                // Normalización del número de teléfono del vendedor
                 let telVendedor = vendedorAsignado.telefono.replace(/[^0-9]/g, '');
                 if (telVendedor.startsWith('0') && telVendedor.length === 11) {
                     telVendedor = '58' + telVendedor.substring(1);
                 }
 
-                window.open(`https://wa.me/${telVendedor}?text=${encodeURIComponent(mensajeCompleto)}`, '_blank');
+                window.open(`https://wa.me/${telVendedor}?text=${encodeURIComponent(mensajeValidacion)}`, '_blank');
             } else {
                 alert('¡Pedido registrado con éxito! (Nota: No hay vendedores activos disponibles para redirección automática a WhatsApp).');
             }
 
-            alert('¡Pedido realizado con éxito y asignado al vendedor correspondiente!');
+            alert(`¡Pedido N°${nroTicket} realizado con éxito y asignado al vendedor correspondiente!`);
             carritoGlobal = [];
             actualizarContadorCarrito();
             cerrarCarrito();
@@ -488,38 +535,51 @@
             contenedor.innerHTML = `
                 <div class="space-y-6 max-w-5xl mx-auto">
                     <h2 class="text-xl font-bold text-white">Panel de Vendedor: Mis Pedidos Asignados</h2>
-                    <p class="text-xs text-zinc-400">Aquí puedes ver los pedidos asignados a tu cuenta y marcar su estatus (Concretado / No Concretado).</p>
+                    <p class="text-xs text-zinc-400">Consulta el número de orden que te envíe el cliente. Al pasar el cursor o revisar el pedido, verás la auditoría de términos y condiciones casada con su nombre y teléfono.</p>
                     
                     <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl">
                         <div class="overflow-x-auto">
                             <table class="w-full text-left text-xs">
                                 <thead class="bg-zinc-900 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                                     <tr>
-                                        <th class="p-3">Ticket / Fecha</th>
-                                        <th class="p-3">Cliente</th>
+                                        <th class="p-3">Orden / Fecha</th>
+                                        <th class="p-3">Cliente & Contacto</th>
+                                        <th class="p-3">Productos del Carrito</th>
+                                        <th class="p-3">T&C de Seguridad Casados</th>
                                         <th class="p-3">Total</th>
-                                        <th class="p-3">Estatus</th>
                                         <th class="p-3 text-center">Acción / Marcar</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-zinc-800 text-zinc-300">
-                                    ${(pedidos || []).length > 0 ? pedidos.map(p => `
-                                        <tr class="hover:bg-zinc-900/50 transition">
-                                            <td class="p-3 font-mono">
-                                                <span class="text-amber-400 font-bold">#${p.nro_ticket}</span>
-                                                <span class="block text-[10px] text-zinc-500">${new Date(p.created_at).toLocaleString()}</span>
-                                            </td>
-                                            <td class="p-3 font-semibold text-white">${p.cliente_nombre}<br><span class="text-[10px] text-zinc-400 font-mono">${p.cliente_telefono}</span></td>
-                                            <td class="p-3 font-bold text-emerald-400">$${Number(p.total).toFixed(2)}</td>
-                                            <td class="p-3">
-                                                <span class="px-2 py-1 rounded text-[10px] font-bold ${p.estatus_pedido === 'CONCRETADO' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">${p.estatus_pedido || 'PENDIENTE'}</span>
-                                            </td>
-                                            <td class="p-3 text-center space-x-2">
-                                                <button onclick="actualizarEstatusPedidoVendedor(${p.id}, 'CONCRETADO')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-[10px] cursor-pointer">Concretar</button>
-                                                <button onclick="actualizarEstatusPedidoVendedor(${p.id}, 'NO CONCRETADO')" class="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded font-bold text-[10px] cursor-pointer">No Concretado</button>
-                                            </td>
-                                        </tr>
-                                    `).join('') : '<tr><td colspan="5" class="p-4 text-center text-zinc-500">No tienes pedidos asignados actualmente.</td></tr>'}
+                                    ${(pedidos || []).length > 0 ? pedidos.map(p => {
+                                        const listaProd = (p.productos_json || []).map(i => `• ${i.cantidad}x ${i.nombre_producto} ($${Number(i.precio).toFixed(2)})`).join('<br>');
+                                        const tc = p.terminos_aceptados_json || {};
+                                        return `
+                                            <tr class="hover:bg-zinc-900/50 transition">
+                                                <td class="p-3 font-mono">
+                                                    <span class="text-amber-400 font-bold">#${p.nro_ticket}</span>
+                                                    <span class="block text-[10px] text-zinc-500">${new Date(p.created_at).toLocaleString()}</span>
+                                                </td>
+                                                <td class="p-3 font-semibold text-white">
+                                                    ${p.cliente_nombre}
+                                                    <span class="block text-[10px] text-zinc-400 font-mono">${p.cliente_telefono}</span>
+                                                </td>
+                                                <td class="p-3 text-zinc-300 leading-relaxed">${listaProd}</td>
+                                                <td class="p-3">
+                                                    <div class="p-2 bg-zinc-900 border border-emerald-500/30 rounded-lg space-y-1 text-[10px]">
+                                                        <span class="text-emerald-400 font-bold block">✓ Aceptado (${tc.orden_asociada || 'N/A'})</span>
+                                                        <span class="text-zinc-400 block truncate w-44">Cliente: ${tc.cliente_nombre || p.cliente_nombre}</span>
+                                                        <span class="text-zinc-400 block font-mono">Telf: ${tc.cliente_telefono || p.cliente_telefono}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="p-3 font-bold text-emerald-400">$${Number(p.total).toFixed(2)}</td>
+                                                <td class="p-3 text-center space-x-2">
+                                                    <button onclick="actualizarEstatusPedidoVendedor(${p.id}, 'CONCRETADO')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-[10px] cursor-pointer">Concretar</button>
+                                                    <button onclick="actualizarEstatusPedidoVendedor(${p.id}, 'NO CONCRETADO')" class="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded font-bold text-[10px] cursor-pointer">No Concretado</button>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('') : '<tr><td colspan="6" class="p-4 text-center text-zinc-500">No tienes pedidos asignados actualmente.</td></tr>'}
                                 </tbody>
                             </table>
                         </div>
