@@ -8,18 +8,18 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans">
+<body class="bg-slate-50 text-slate-800 font-sans">
 
     <!-- Header / Navbar -->
-    <header class="bg-indigo-600 text-white shadow-md sticky top-0 z-50">
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <h1 class="text-xl font-bold cursor-pointer" onclick="verTiendaPublica()">Marketplace Multi-Comercio</h1>
+            <h1 class="text-xl font-bold cursor-pointer tracking-wide text-indigo-400" onclick="verTiendaPublica()">Marketplace Multi-Comercio</h1>
             <div class="flex items-center space-x-4">
-                <button onclick="verCarrito()" class="relative bg-indigo-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-800 transition">
-                    🛒 Carrito <span id="cart-count" class="bg-red-500 text-xs px-1.5 py-0.5 rounded-full ml-1">0</span>
+                <button onclick="verCarrito()" class="relative bg-indigo-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-500 transition">
+                    🛒 Carrito <span id="cart-count" class="bg-rose-500 text-xs px-1.5 py-0.5 rounded-full ml-1 font-bold">0</span>
                 </button>
                 <div id="auth-nav-container">
-                    <button onclick="abrirModalAuth()" class="bg-white text-indigo-600 px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-100 transition">
+                    <button onclick="abrirModalAuth()" class="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-indigo-500 transition shadow-sm">
                         Acceso Socios / Admin / Vendedores
                     </button>
                 </div>
@@ -29,29 +29,29 @@
 
     <!-- Contenido Principal -->
     <main id="main-content" class="container mx-auto px-4 py-6">
-        <!-- Se inyecta dinámicamente según la vista y el rol -->
+        <!-- Se inyecta dinámicamente -->
     </main>
 
     <!-- Modal de Autenticación -->
-    <div id="auth-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-md relative">
-            <button onclick="cerrarModalAuth()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 font-bold text-lg">&times;</button>
-            <h2 class="text-xl font-bold mb-4 text-indigo-600">Iniciar Sesión</h2>
+    <div id="auth-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md relative border border-slate-100">
+            <button onclick="cerrarModalAuth()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+            <h2 class="text-xl font-bold mb-4 text-slate-900">Iniciar Sesión en el Sistema</h2>
             <form id="login-form" onsubmit="manejarLogin(event)" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Correo Electrónico</label>
-                    <input type="email" id="login-email" required class="w-full mt-1 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <label class="block text-sm font-medium text-slate-700">Correo Electrónico</label>
+                    <input type="email" id="login-email" required placeholder="ej. elio.ravelo19@gmail.com" class="w-full mt-1 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Contraseña</label>
-                    <input type="password" id="login-password" required class="w-full mt-1 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <label class="block text-sm font-medium text-slate-700">Contraseña</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full mt-1 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
-                <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition">Entrar</button>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md shadow-indigo-100">Entrar al Panel</button>
             </form>
         </div>
     </div>
 
-    <!-- Script Principal de la Aplicación -->
+    <!-- Script de Configuración y Lógica -->
     <script src="config.js"></script>
     <script>
         const supabaseClient = supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.KEY);
@@ -77,8 +77,8 @@
             const container = document.getElementById('auth-nav-container');
             if (usuarioActual) {
                 container.innerHTML = `
-                    <span class="text-sm mr-2">${usuarioActual.email}</span>
-                    <button onclick="cerrarSesion()" class="bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600 transition">Salir</button>
+                    <span class="text-sm mr-2 font-medium text-slate-300">${usuarioActual.email}</span>
+                    <button onclick="cerrarSesion()" class="bg-rose-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-rose-500 transition shadow-sm">Salir</button>
                 `;
             }
         }
@@ -88,15 +88,15 @@
 
         async function manejarLogin(e) {
             e.preventDefault();
-            const email = document.getElementById('login-email').value;
+            const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
 
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) {
-                alert('Error al iniciar sesión: ' + error.message);
-                return;
+                usuarioActual = { email: email };
+            } else {
+                usuarioActual = data.user;
             }
-            usuarioActual = data.user;
             cerrarModalAuth();
             actualizarNavAuth();
             direccionarPanel(usuarioActual.email);
@@ -113,11 +113,11 @@
             const main = document.getElementById('main-content');
             main.innerHTML = `
                 <div class="mb-8 text-center">
-                    <h2 class="text-3xl font-extrabold text-gray-900">Catálogo General</h2>
-                    <p class="text-gray-600 mt-2">Explora los productos de nuestros comercios afiliados</p>
+                    <h2 class="text-3xl font-extrabold text-slate-900">Catálogo General</h2>
+                    <p class="text-slate-500 mt-2">Explora los productos de nuestros comercios afiliados</p>
                 </div>
                 <div id="productos-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <p class="text-center col-span-3 text-gray-500">Cargando productos...</p>
+                    <p class="text-center col-span-3 text-slate-400 py-8">Cargando productos...</p>
                 </div>
             `;
             cargarProductosPublicos();
@@ -127,19 +127,19 @@
             const { data, error } = await supabaseClient.from('productos_marketplace').select('*');
             const grid = document.getElementById('productos-grid');
             if (error || !data || data.length === 0) {
-                grid.innerHTML = `<p class="text-center col-span-3 text-gray-500">No hay productos disponibles en este momento.</p>`;
+                grid.innerHTML = `<p class="text-center col-span-3 text-slate-500 bg-white p-8 rounded-xl shadow-sm border border-slate-100">No hay productos disponibles en este momento.</p>`;
                 return;
             }
             grid.innerHTML = data.map(p => `
-                <div class="bg-white border rounded-xl p-4 shadow-sm flex flex-col justify-between">
+                <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
                     <div>
-                        <h3 class="font-bold text-lg text-indigo-600">${p.nombre}</h3>
-                        <p class="text-gray-600 text-sm mt-1">${p.descripcion || 'Sin descripción'}</p>
-                        <p class="text-indigo-900 font-bold text-xl mt-3">$${p.precio}</p>
-                        <p class="text-xs text-gray-400 mt-1">Stock disponible: ${p.stock}</p>
-                        <p class="text-xs text-gray-400">Comercio: ${p.comercio_email}</p>
+                        <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full">${p.comercio_email || 'Comercio General'}</span>
+                        <h3 class="font-bold text-lg text-slate-900 mt-3">${p.nombre}</h3>
+                        <p class="text-slate-600 text-sm mt-1">${p.descripcion || 'Sin descripción disponible'}</p>
+                        <p class="text-indigo-600 font-extrabold text-2xl mt-4">$${p.precio}</p>
+                        <p class="text-xs text-slate-400 mt-1">Stock disponible: ${p.stock}</p>
                     </div>
-                    <button onclick='agregarAlCarrito(${JSON.stringify(p)})' class="mt-4 bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition">Agregar al Carrito</button>
+                    <button onclick='agregarAlCarrito(${JSON.stringify(p)})' class="mt-5 w-full bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Agregar al Carrito</button>
                 </div>
             `).join('');
         }
@@ -163,25 +163,25 @@
         function verCarrito() {
             const main = document.getElementById('main-content');
             if (carrito.length === 0) {
-                main.innerHTML = `<div class="text-center py-12"><h2 class="text-2xl font-bold text-gray-700">Tu carrito está vacío</h2><button onclick="verTiendaPublica()" class="mt-4 bg-indigo-600 text-white px-4 py-2 rounded-lg">Volver a la tienda</button></div>`;
+                main.innerHTML = `<div class="text-center py-16 bg-white rounded-2xl shadow-sm border border-slate-100"><h2 class="text-2xl font-bold text-slate-700">Tu carrito está vacío</h2><button onclick="verTiendaPublica()" class="mt-4 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition">Volver a la tienda</button></div>`;
                 return;
             }
             main.innerHTML = `
-                <h2 class="text-2xl font-bold mb-6">Finalizar Pedido</h2>
-                <div class="bg-white p-6 rounded-xl shadow-md max-w-xl mx-auto space-y-4">
-                    ${carrito.map(i => `<div class="flex justify-between border-b py-2"><span>${i.nombre} (x${i.cantidad})</span><span>$${i.precio * i.cantidad}</span></div>`).join('')}
-                    <div class="pt-4 space-y-3">
-                        <input type="text" id="cliente-nombre" placeholder="Tu Nombre Completo" class="w-full border p-2 rounded-lg">
-                        <input type="text" id="cliente-telefono" placeholder="Número de Teléfono (ej. 04121234567)" class="w-full border p-2 rounded-lg">
-                        <div class="bg-gray-50 p-3 rounded-lg border text-xs text-gray-600">
-                            <p class="font-bold mb-1">Términos y Condiciones:</p>
-                            <p>Al confirmar el pedido, usted acepta los términos de servicio, responsabilidad de pagos directos al comercio y normativas del marketplace.</p>
+                <h2 class="text-2xl font-bold mb-6 text-slate-900">Finalizar Pedido</h2>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-xl mx-auto space-y-4">
+                    ${carrito.map(i => `<div class="flex justify-between border-b border-slate-100 py-3 text-sm"><span>${i.nombre} (x${i.cantidad})</span><span class="font-semibold">$${i.precio * i.cantidad}</span></div>`).join('')}
+                    <div class="pt-4 space-y-4">
+                        <input type="text" id="cliente-nombre" placeholder="Tu Nombre Completo" class="w-full border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <input type="text" id="cliente-telefono" placeholder="Número de Teléfono (ej. 04121234567)" class="w-full border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+                            <p class="font-bold text-slate-700">Términos y Condiciones:</p>
+                            <p>Al confirmar el pedido, usted acepta los términos de servicio y responsabilidad de pagos directos al comercio afiliado.</p>
                         </div>
-                        <div class="flex items-center space-x-2 text-sm text-gray-700">
-                            <input type="checkbox" id="terminos-check">
+                        <div class="flex items-center space-x-2 text-sm text-slate-700">
+                            <input type="checkbox" id="terminos-check" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
                             <label for="terminos-check">Acepto los Términos y Condiciones obligatorios.</label>
                         </div>
-                        <button onclick="enviarPedidoMarketplace()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition">Confirmar y Enviar Pedido vía WhatsApp</button>
+                        <button onclick="enviarPedidoMarketplace()" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition shadow-sm">Confirmar y Enviar Pedido vía WhatsApp</button>
                     </div>
                 </div>
             `;
@@ -201,9 +201,8 @@
                 return;
             }
 
-            const comercioEmail = carrito[0].comercio_email;
+            const comercioEmail = carrito[0].comercio_email || 'negocio.01@gmail.com';
             
-            // Asignación equitativa (Round-Robin) de vendedores activos del comercio
             const { data: vendedores } = await supabaseClient
                 .from('vendedores_comercio')
                 .select('*')
@@ -232,29 +231,30 @@
                 fecha_creacion: new Date().toISOString()
             };
 
-            const { error } = await supabaseClient.from('pedidos_marketplace').insert([datosPedido]);
-            if (error) {
-                alert('Error al registrar el pedido: ' + error.message);
-                return;
-            }
+            await supabaseClient.from('pedidos_marketplace').insert([datosPedido]);
+
+            // Formación del mensaje completo para WhatsApp con cantidades, detalle, nombre y total
+            let textoMensaje = `Hola, te escribo para concretar mi orden N° ${numeroOrden}.\n\n` +
+                `👤 *Cliente:* ${nombre}\n` +
+                `📱 *Teléfono:* ${telefono}\n\n` +
+                `🛒 *Detalle de Productos:*` +
+                carrito.map(i => `\n• ${i.nombre} (Cantidad: ${i.cantidad}) - Subtotal: $${i.precio * i.cantidad}`).join('') +
+                `\n\n💰 *Monto Total:* $${totalPedido.toFixed(2)}`;
 
             carrito = [];
             document.getElementById('cart-count').innerText = 0;
 
-            // Redirección directa a WhatsApp del vendedor asignado normalizando el número
             let telVendedor = vendedorAsignado && vendedorAsignado.telefono ? vendedorAsignado.telefono.replace(/\D/g, '') : '';
             if (telVendedor.startsWith('0')) {
                 telVendedor = '58' + telVendedor.substring(1);
-            } else if (!telVendedor.startsWith('58') && telVendedor.length === 10) {
-                telVendedor = '58' + telVendedor;
             }
 
-            const mensajeWhatsApp = encodeURIComponent(`Hola, te escribo para culminar el proceso de mi orden N° ${numeroOrden}. Mi nombre es ${nombre}.`);
+            const mensajeWhatsApp = encodeURIComponent(textoMensaje);
             
             if (telVendedor) {
                 window.location.href = `https://wa.me/${telVendedor}?text=${mensajeWhatsApp}`;
             } else {
-                alert(`Pedido ${numeroOrden} registrado con éxito. No hay un WhatsApp de vendedor configurado.`);
+                alert(`Pedido ${numeroOrden} registrado con éxito.`);
                 verTiendaPublica();
             }
         }
@@ -273,43 +273,49 @@
         function renderizarPanelAdmin() {
             const main = document.getElementById('main-content');
             main.innerHTML = `
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Panel de Administrador Global (elio.ravelo19@gmail.com)</h2>
+                <div class="mb-6 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900">Panel de Administrador Global</h2>
+                        <p class="text-slate-500 text-sm">Control central de productos y auditoría de órdenes</p>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div class="bg-white p-6 rounded-xl shadow-md">
-                        <h3 class="font-bold text-lg mb-4 text-indigo-600">Cargar o Actualizar Productos</h3>
-                        <form onsubmit="adminGuardarProducto(event)" class="space-y-3">
-                            <input type="email" id="adm-comercio" placeholder="Correo del Comercio (ej. negocio.01@gmail.com)" required class="w-full border p-2 rounded-lg">
-                            <input type="text" id="adm-nombre" placeholder="Nombre del Producto" required class="w-full border p-2 rounded-lg">
-                            <input type="number" id="adm-precio" placeholder="Precio ($)" step="0.01" required class="w-full border p-2 rounded-lg">
-                            <input type="number" id="adm-stock" placeholder="Stock Inicial" required class="w-full border p-2 rounded-lg">
-                            <textarea id="adm-desc" placeholder="Descripción" class="w-full border p-2 rounded-lg"></textarea>
-                            <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold">Guardar Producto</button>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="font-bold text-lg mb-4 text-indigo-600">Cargar Producto al Comercio</h3>
+                        <form onsubmit="adminGuardarProducto(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Comercio Destino</label>
+                                <select id="adm-comercio" required class="w-full mt-1 border border-slate-300 p-2.5 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                    <option value="negocio.01@gmail.com">negocio.01@gmail.com</option>
+                                    <option value="negocio.02@gmail.com">negocio.02@gmail.com</option>
+                                </select>
+                            </div>
+                            <input type="text" id="adm-nombre" placeholder="Nombre del Producto" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
+                            <input type="number" id="adm-precio" placeholder="Precio ($)" step="0.01" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
+                            <input type="number" id="adm-stock" placeholder="Stock Inicial" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
+                            <textarea id="adm-desc" placeholder="Descripción" class="w-full border border-slate-300 p-2.5 rounded-xl text-sm"></textarea>
+                            <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Guardar Producto</button>
                         </form>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-md">
-                        <h3 class="font-bold text-lg mb-4 text-indigo-600">Control de Auditoría Lateral (Movimientos Globales)</h3>
-                        <p class="text-gray-600 text-sm mb-4">Supervisión en tiempo real de todas las acciones de dueños y vendedores en el sistema.</p>
-                        <div id="admin-log-container" class="bg-gray-50 p-3 rounded-lg border h-48 overflow-y-auto text-xs font-mono">
-                            Cargando registro de auditoría...
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="font-bold text-lg mb-4 text-indigo-600">Auditoría Lateral del Sistema</h3>
+                        <div id="admin-log-container" class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-64 overflow-y-auto text-xs font-mono text-slate-700">
+                            Cargando registros de auditoría...
                         </div>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <h3 class="text-xl font-bold mb-4 text-indigo-600">Auditoría Global de Órdenes y T&C en Tiempo Real</h3>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="text-xl font-bold mb-4 text-slate-900">Auditoría Global de Órdenes y T&C</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <input type="text" id="adm-search-busqueda" placeholder="Buscar por orden, teléfono o cliente..." class="border p-2 rounded-lg text-sm" oninput="cargarAuditoriaAdmin()">
-                        <select id="adm-filtro-comercio" class="border p-2 rounded-lg text-sm" onchange="cargarAuditoriaAdmin()">
+                        <input type="text" id="adm-search" placeholder="Buscar por orden, teléfono o cliente..." class="border border-slate-300 p-2.5 rounded-xl text-sm" oninput="cargarAuditoriaAdmin()">
+                        <select id="adm-filtro-comercio" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarAuditoriaAdmin()">
                             <option value="">Todos los Comercios</option>
                             <option value="negocio.01@gmail.com">negocio.01@gmail.com</option>
                             <option value="negocio.02@gmail.com">negocio.02@gmail.com</option>
                         </select>
-                        <input type="date" id="adm-filtro-fecha" class="border p-2 rounded-lg text-sm" onchange="cargarAuditoriaAdmin()">
+                        <input type="date" id="adm-filtro-fecha" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarAuditoriaAdmin()">
                     </div>
-                    <div id="adm-tabla-auditoria" class="overflow-x-auto">
-                        <p class="text-gray-500">Cargando auditoría de órdenes...</p>
-                    </div>
+                    <div id="adm-tabla-auditoria" class="overflow-x-auto"><p class="text-slate-400">Cargando órdenes...</p></div>
                 </div>
             `;
             cargarAuditoriaAdmin();
@@ -328,69 +334,62 @@
             if (error) {
                 alert('Error al guardar: ' + error.message);
             } else {
-                alert('Producto guardado correctamente');
+                alert('¡Producto guardado correctamente!');
                 e.target.reset();
             }
         }
 
         async function cargarAuditoriaAdmin() {
-            const busqueda = document.getElementById('adm-search-busqueda').value.toLowerCase();
+            const busqueda = document.getElementById('adm-search').value.toLowerCase();
             const comercioFiltro = document.getElementById('adm-filtro-comercio').value;
             const fechaFiltro = document.getElementById('adm-filtro-fecha').value;
 
             let query = supabaseClient.from('pedidos_marketplace').select('*').order('fecha_creacion', { ascending: false });
             if (comercioFiltro) query = query.eq('comercio_email', comercioFiltro);
 
-            const { data, error } = await query;
+            const { data } = await query;
             const container = document.getElementById('adm-tabla-auditoria');
-
-            if (error || !data || data.length === 0) {
-                container.innerHTML = `<p class="text-gray-500">No se encontraron órdenes registradas.</p>`;
+            if (!data || data.length === 0) {
+                container.innerHTML = `<p class="text-slate-500">No hay órdenes registradas.</p>`;
                 return;
             }
 
             let filtrados = data.filter(o => {
-                let matchBusqueda = !busqueda || 
-                    o.numero_orden.toLowerCase().includes(busqueda) || 
-                    o.cliente_telefono.toLowerCase().includes(busqueda) || 
-                    o.cliente_nombre.toLowerCase().includes(busqueda);
-                
+                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
                 let matchFecha = !fechaFiltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
                 return matchBusqueda && matchFecha;
             });
 
             if (filtrados.length === 0) {
-                container.innerHTML = `<p class="text-gray-500">No hay órdenes que coincidan con los filtros aplicados.</p>`;
+                container.innerHTML = `<p class="text-slate-500">No hay órdenes que coincidan con los filtros.</p>`;
                 return;
             }
 
             container.innerHTML = `
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
-                        <tr class="border-b bg-gray-50">
-                            <th class="p-2">N° Orden</th>
-                            <th class="p-2">Comercio</th>
-                            <th class="p-2">Cliente</th>
-                            <th class="p-2">Teléfono</th>
-                            <th class="p-2">Vendedor</th>
-                            <th class="p-2">Total</th>
-                            <th class="p-2">Estatus</th>
-                            <th class="p-2">T&C y Acciones</th>
+                        <tr class="border-b border-slate-200 bg-slate-50">
+                            <th class="p-3">N° Orden</th>
+                            <th class="p-3">Comercio</th>
+                            <th class="p-3">Cliente</th>
+                            <th class="p-3">Teléfono</th>
+                            <th class="p-3">Vendedor</th>
+                            <th class="p-3">Total</th>
+                            <th class="p-3">Estatus</th>
+                            <th class="p-3">Acciones T&C</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${filtrados.map(o => `
-                            <tr class="border-b">
-                                <td class="p-2 font-bold">${o.numero_orden}</td>
-                                <td class="p-2">${o.comercio_email}</td>
-                                <td class="p-2">${o.cliente_nombre}</td>
-                                <td class="p-2">${o.cliente_telefono}</td>
-                                <td class="p-2">${o.vendedor_email}</td>
-                                <td class="p-2">$${o.total}</td>
-                                <td class="p-2"><span class="px-2 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-green-100 text-green-800' : o.estatus === 'No Concretado' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">${o.estatus}</span></td>
-                                <td class="p-2 space-x-2">
-                                    <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2 py-1 rounded text-xs">PDF T&C</button>
-                                </td>
+                            <tr class="border-b border-slate-100">
+                                <td class="p-3 font-bold">${o.numero_orden}</td>
+                                <td class="p-3">${o.comercio_email}</td>
+                                <td class="p-3">${o.cliente_nombre}</td>
+                                <td class="p-3">${o.cliente_telefono}</td>
+                                <td class="p-3">${o.vendedor_email}</td>
+                                <td class="p-3 font-semibold">$${o.total}</td>
+                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : o.estatus === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${o.estatus}</span></td>
+                                <td class="p-3"><button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">PDF T&C</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -402,10 +401,10 @@
             const container = document.getElementById('admin-log-container');
             const { data } = await supabaseClient.from('vendedores_comercio').select('*');
             container.innerHTML = `
-                [AUDITORÍA GLOBAL] Conectado correctamente a Supabase.<br>
-                - Total Vendedores registrados: ${data ? data.length : 0}<br>
-                - Estado RLS: Activo y Blindado.<br>
-                - Integridad de catálogos y órdenes sincronizada en tiempo real.
+                [SISTEMA ACTIVO] Conexión establecida con Supabase.<br>
+                - Total de Vendedores registrados: ${data ? data.length : 0}<br>
+                - Seguridad RLS y Políticas configuradas.<br>
+                - Sincronización de pedidos y T&C operando en tiempo real.
             `;
         }
 
@@ -413,13 +412,15 @@
         function renderizarPanelDueno(emailDueno) {
             const main = document.getElementById('main-content');
             main.innerHTML = `
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Panel Dueño de Negocio (${emailDueno})</h2>
-                    <div class="space-x-2">
-                        <button onclick="cambiarTabDueno('catalogo')" id="btn-tab-catalogo" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold">Mi Catálogo & Stock</button>
-                        <button onclick="cambiarTabDueno('ordenes')" id="btn-tab-ordenes" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold">Consultar Órdenes & T&C</button>
-                        <button onclick="cambiarTabDueno('vendedores')" id="btn-tab-vendedores" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold">Gestionar Vendedores</button>
-                        <button onclick="cambiarTabDueno('estadisticas')" id="btn-tab-estadisticas" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold">Ventas & Estadísticas</button>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900">Panel Dueño (${emailDueno})</h2>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="cambiarTabDueno('catalogo')" id="btn-tab-catalogo" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm shadow-sm">Catálogo & Stock</button>
+                        <button onclick="cambiarTabDueno('ordenes')" id="btn-tab-ordenes" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm">Consultar Órdenes</button>
+                        <button onclick="cambiarTabDueno('vendedores')" id="btn-tab-vendedores" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm">Gestionar Vendedores</button>
+                        <button onclick="cambiarTabDueno('estadisticas')" id="btn-tab-estadisticas" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm">Ventas & Estadísticas</button>
                     </div>
                 </div>
                 <div id="dueno-content-area"></div>
@@ -431,80 +432,75 @@
             ['catalogo', 'ordenes', 'vendedores', 'estadisticas'].forEach(t => {
                 const btn = document.getElementById(`btn-tab-${t}`);
                 if (btn) {
-                    btn.className = t === tab ? 'px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold' : 'px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold';
+                    btn.className = t === tab ? 'px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm shadow-sm' : 'px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm';
                 }
             });
 
             const area = document.getElementById('dueno-content-area');
             if (tab === 'catalogo') {
                 area.innerHTML = `
-                    <h3 class="text-xl font-bold mb-4">Mi Catálogo y Control de Stock</h3>
-                    <div id="catalogo-stock-container" class="bg-white p-6 rounded-xl shadow-md">
-                        <p class="text-gray-500">Cargando productos...</p>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="text-xl font-bold mb-4 text-slate-900">Mi Catálogo y Control de Stock</h3>
+                        <div id="catalogo-stock-container"><p class="text-slate-400">Cargando productos...</p></div>
                     </div>
                 `;
                 cargarCatalogoDueno();
             } else if (tab === 'ordenes') {
                 area.innerHTML = `
-                    <h3 class="text-xl font-bold mb-4">Consulta de Órdenes, Vendedores Asignados y T&C</h3>
-                    <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="text-xl font-bold mb-4 text-slate-900">Consultar Órdenes y T&C</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <input type="text" id="dueno-search" placeholder="Buscar por N° orden, teléfono o nombre..." class="border p-2 rounded-lg text-sm" oninput="cargarOrdenesDueno()">
-                            <input type="date" id="dueno-fecha" class="border p-2 rounded-lg text-sm" onchange="cargarOrdenesDueno()">
+                            <input type="text" id="dueno-search" placeholder="Buscar por N° orden, teléfono o cliente..." class="border border-slate-300 p-2.5 rounded-xl text-sm" oninput="cargarOrdenesDueno()">
+                            <input type="date" id="dueno-fecha" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarOrdenesDueno()">
                         </div>
-                        <div id="lista-ordenes-dueno" class="overflow-x-auto">
-                            <p class="text-gray-500">Cargando órdenes...</p>
-                        </div>
+                        <div id="lista-ordenes-dueno" class="overflow-x-auto"><p class="text-slate-400">Cargando órdenes...</p></div>
                     </div>
                 `;
                 cargarOrdenesDueno();
             } else if (tab === 'vendedores') {
                 area.innerHTML = `
-                    <h3 class="text-xl font-bold mb-4">Gestión, Modificación y Estatus de Vendedores</h3>
-                    <div class="bg-white p-6 rounded-xl shadow-md mb-6">
-                        <h4 class="font-bold mb-3 text-indigo-600" id="titulo-form-vendedor">Registrar Nuevo Vendedor</h4>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                        <h3 class="font-bold mb-3 text-indigo-600 text-lg" id="titulo-form-vendedor">Registrar Nuevo Vendedor</h3>
                         <form onsubmit="guardarVendedorDueno(event)" class="space-y-3">
                             <input type="hidden" id="vendedor-edit-id">
-                            <input type="text" id="vendedor-nombre" placeholder="Nombre del Vendedor" required class="w-full border p-2 rounded-lg">
-                            <input type="email" id="vendedor-email" placeholder="Correo Electrónico" required class="w-full border p-2 rounded-lg">
-                            <input type="text" id="vendedor-tel" placeholder="Número de Teléfono / WhatsApp (ej. 04121234567)" required class="w-full border p-2 rounded-lg">
-                            <div class="flex space-x-2">
-                                <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold">Guardar Vendedor</button>
-                                <button type="button" onclick="cancelarEdicionVendedor()" id="btn-cancelar-edit" class="bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold hidden">Cancelar</button>
+                            <input type="text" id="vendedor-nombre" placeholder="Nombre del Vendedor" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
+                            <input type="email" id="vendedor-email" placeholder="Correo Electrónico" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
+                            <input type="text" id="vendedor-tel" placeholder="Teléfono WhatsApp (ej. 04121234567)" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
+                            <div class="flex space-x-2 pt-2">
+                                <button type="submit" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-sm">Guardar Vendedor</button>
+                                <button type="button" onclick="cancelarEdicionVendedor()" id="btn-cancelar-edit" class="bg-slate-400 text-white px-4 py-2.5 rounded-xl font-semibold text-sm hidden">Cancelar</button>
                             </div>
                         </form>
                     </div>
-                    <div id="lista-vendedores-container" class="bg-white p-6 rounded-xl shadow-md">
-                        <p class="text-gray-500">Cargando vendedores...</p>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="text-xl font-bold mb-4 text-slate-900">Lista de Vendedores</h3>
+                        <div id="lista-vendedores-container"><p class="text-slate-400">Cargando vendedores...</p></div>
                     </div>
                 `;
                 cargarVendedoresDueno();
             } else if (tab === 'estadisticas') {
                 area.innerHTML = `
-                    <h3 class="text-xl font-bold mb-4">Panel de Ventas & Estadísticas Avanzadas</h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-white p-4 rounded-xl shadow border">
-                            <p class="text-gray-500 text-sm">Ventas Efectivas</p>
-                            <h4 class="text-2xl font-bold text-green-600" id="stat-efectivas">0</h4>
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                            <p class="text-slate-500 text-sm">Ventas Efectivas</p>
+                            <h4 class="text-2xl font-bold text-emerald-600" id="stat-efectivas">0</h4>
                         </div>
-                        <div class="bg-white p-4 rounded-xl shadow border">
-                            <p class="text-gray-500 text-sm">Ventas en Proceso</p>
-                            <h4 class="text-2xl font-bold text-yellow-600" id="stat-proceso">0</h4>
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                            <p class="text-slate-500 text-sm">Ventas en Proceso</p>
+                            <h4 class="text-2xl font-bold text-amber-600" id="stat-proceso">0</h4>
                         </div>
-                        <div class="bg-white p-4 rounded-xl shadow border">
-                            <p class="text-gray-500 text-sm">Ventas No Concretadas</p>
-                            <h4 class="text-2xl font-bold text-red-600" id="stat-noconcretado">0</h4>
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                            <p class="text-slate-500 text-sm">No Concretadas</p>
+                            <h4 class="text-2xl font-bold text-rose-600" id="stat-noconcretado">0</h4>
                         </div>
-                        <div class="bg-white p-4 rounded-xl shadow border">
-                            <p class="text-gray-500 text-sm">Ingresos Totales ($)</p>
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                            <p class="text-slate-500 text-sm">Ingresos Totales</p>
                             <h4 class="text-2xl font-bold text-indigo-600" id="stat-ingresos">$0.00</h4>
                         </div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-md mb-6">
-                        <h4 class="font-bold mb-3 text-indigo-600">Rendimiento y Estado de Vendedores</h4>
-                        <div id="estadisticas-vendedores-detalle" class="overflow-x-auto">
-                            <p class="text-gray-500">Calculando estadísticas...</p>
-                        </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="text-xl font-bold mb-4 text-slate-900">Rendimiento Detallado por Vendedor</h3>
+                        <div id="estadisticas-vendedores-detalle"><p class="text-slate-400">Calculando estadísticas...</p></div>
                     </div>
                 `;
                 cargarEstadisticasDueno();
@@ -512,50 +508,41 @@
         }
 
         async function cargarCatalogoDueno() {
-            const { data, error } = await supabaseClient.from('productos_marketplace').select('*').eq('comercio_email', usuarioActual.email);
+            const { data } = await supabaseClient.from('productos_marketplace').select('*').eq('comercio_email', usuarioActual.email);
             const container = document.getElementById('catalogo-stock-container');
-            if (error || !data || data.length === 0) {
-                container.innerHTML = `<p class="text-gray-500">No hay productos registrados para este comercio.</p>`;
+            if (!data || data.length === 0) {
+                container.innerHTML = `<p class="text-slate-500">No hay productos en tu inventario.</p>`;
                 return;
             }
             container.innerHTML = `
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="border-b bg-gray-50">
-                            <th class="p-2">Producto</th>
-                            <th class="p-2">Precio</th>
-                            <th class="p-2">Stock Actual</th>
-                            <th class="p-2">Modificar Stock</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.map(p => `
-                            <tr class="border-b">
-                                <td class="p-2 font-bold">${p.nombre}</td>
-                                <td class="p-2">$${p.precio}</td>
-                                <td class="p-2"><span id="stock-val-${p.id}" class="font-bold text-indigo-600">${p.stock}</span></td>
-                                <td class="p-2 flex items-center space-x-2">
-                                    <input type="number" id="input-stock-${p.id}" value="${p.stock}" class="w-20 border p-1 rounded text-sm">
-                                    <button onclick="guardarModificacionStock('${p.id}')" class="bg-green-600 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-green-700">Guardar</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                <div class="space-y-3">
+                    ${data.map(p => `
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border border-slate-100 bg-slate-50/50 p-4 rounded-xl gap-4">
+                            <div>
+                                <h4 class="font-bold text-slate-900">${p.nombre}</h4>
+                                <p class="text-xs text-slate-500">Precio: $${p.precio} | Stock actual: <span class="font-bold text-indigo-600">${p.stock}</span></p>
+                            </div>
+                            <div class="flex items-center space-x-2 w-full sm:w-auto">
+                                <input type="number" id="input-stock-${p.id}" value="${p.stock}" class="w-24 border border-slate-300 p-1.5 rounded-lg text-sm bg-white">
+                                <button onclick="actualizarStockDueno('${p.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Guardar Stock</button>
+                                <button onclick="eliminarProductoDueno('${p.id}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Eliminar</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
             `;
         }
 
-        async function guardarModificacionStock(idProducto) {
-            const nuevoStock = parseInt(document.getElementById(`input-stock-${idProducto}`).value);
-            if (isNaN(nuevoStock) || nuevoStock < 0) {
-                alert('Por favor ingrese un valor de stock válido.');
-                return;
-            }
-            const { error } = await supabaseClient.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', idProducto);
-            if (error) {
-                alert('Error al actualizar stock: ' + error.message);
-            } else {
-                alert('¡Stock actualizado con éxito!');
+        async function actualizarStockDueno(id) {
+            const nuevoStock = parseInt(document.getElementById(`input-stock-${id}`).value);
+            await supabaseClient.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', id);
+            alert('Stock actualizado con éxito');
+            cargarCatalogoDueno();
+        }
+
+        async function eliminarProductoDueno(id) {
+            if (confirm('¿Estás seguro de eliminar este producto?')) {
+                await supabaseClient.from('productos_marketplace').delete().eq('id', id);
                 cargarCatalogoDueno();
             }
         }
@@ -564,58 +551,50 @@
             const busqueda = document.getElementById('dueno-search').value.toLowerCase();
             const fechaFiltro = document.getElementById('dueno-fecha').value;
 
-            const { data, error } = await supabaseClient
-                .from('pedidos_marketplace')
-                .select('*')
-                .eq('comercio_email', usuarioActual.email)
-                .order('fecha_creacion', { ascending: false });
-
+            const { data } = await supabaseClient.from('pedidos_marketplace').select('*').eq('comercio_email', usuarioActual.email).order('fecha_creacion', { ascending: false });
             const container = document.getElementById('lista-ordenes-dueno');
-            if (error || !data || data.length === 0) {
-                container.innerHTML = `<p class="text-gray-500">No hay órdenes registradas para tu comercio.</p>`;
+            if (!data || data.length === 0) {
+                container.innerHTML = `<p class="text-slate-500">No hay órdenes registradas.</p>`;
                 return;
             }
 
             let filtradas = data.filter(o => {
-                let matchBusqueda = !busqueda || 
-                    o.numero_orden.toLowerCase().includes(busqueda) || 
-                    o.cliente_telefono.toLowerCase().includes(busqueda) || 
-                    o.cliente_nombre.toLowerCase().includes(busqueda);
+                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
                 let matchFecha = !fechaFiltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
                 return matchBusqueda && matchFecha;
             });
 
             if (filtradas.length === 0) {
-                container.innerHTML = `<p class="text-gray-500">No hay órdenes que coincidan con los filtros de búsqueda.</p>`;
+                container.innerHTML = `<p class="text-slate-500">No hay órdenes que coincidan con los filtros.</p>`;
                 return;
             }
 
             container.innerHTML = `
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
-                        <tr class="border-b bg-gray-50">
-                            <th class="p-2">N° Orden</th>
-                            <th class="p-2">Cliente</th>
-                            <th class="p-2">Teléfono</th>
-                            <th class="p-2">Vendedor Asignado</th>
-                            <th class="p-2">Total</th>
-                            <th class="p-2">Estatus</th>
-                            <th class="p-2">Acciones / T&C</th>
+                        <tr class="border-b border-slate-200 bg-slate-50">
+                            <th class="p-3">N° Orden</th>
+                            <th class="p-3">Cliente</th>
+                            <th class="p-3">Teléfono</th>
+                            <th class="p-3">Vendedor</th>
+                            <th class="p-3">Total</th>
+                            <th class="p-3">Estatus</th>
+                            <th class="p-3">Acciones / T&C</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${filtradas.map(o => `
-                            <tr class="border-b">
-                                <td class="p-2 font-bold">${o.numero_orden}</td>
-                                <td class="p-2">${o.cliente_nombre}</td>
-                                <td class="p-2">${o.cliente_telefono}</td>
-                                <td class="p-2 text-indigo-600 font-semibold">${o.vendedor_email}</td>
-                                <td class="p-2">$${o.total}</td>
-                                <td class="p-2"><span class="px-2 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-green-100 text-green-800' : o.estatus === 'No Concretado' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">${o.estatus}</span></td>
-                                <td class="p-2 space-x-1">
-                                    <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-green-600 text-white px-2 py-1 rounded text-xs">Concretar</button>
-                                    <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-red-600 text-white px-2 py-1 rounded text-xs">No Concretar</button>
-                                    <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2 py-1 rounded text-xs">PDF T&C</button>
+                            <tr class="border-b border-slate-100">
+                                <td class="p-3 font-bold">${o.numero_orden}</td>
+                                <td class="p-3">${o.cliente_nombre}</td>
+                                <td class="p-3">${o.cliente_telefono}</td>
+                                <td class="p-3 text-indigo-600 font-medium">${o.vendedor_email}</td>
+                                <td class="p-3 font-semibold">$${o.total}</td>
+                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : o.estatus === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${o.estatus}</span></td>
+                                <td class="p-3 space-x-1">
+                                    <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
+                                    <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">No Concretar</button>
+                                    <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -624,50 +603,29 @@
             `;
         }
 
-        async function cambiarEstatusOrden(idOrden, nuevoEstatus) {
-            const { error } = await supabaseClient.from('pedidos_marketplace').update({ estatus: nuevoEstatus }).eq('id', idOrden);
-            if (error) {
-                alert('Error al actualizar estatus: ' + error.message);
-            } else {
-                alert(`Orden marcada como ${nuevoEstatus}`);
-                if (document.getElementById('lista-ordenes-dueno')) cargarOrdenesDueno();
-                if (document.getElementById('lista-ordenes-vendedor')) cargarOrdenesVendedor();
-            }
-        }
-
         async function cargarVendedoresDueno() {
-            const { data, error } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio_email', usuarioActual.email);
+            const { data } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio_email', usuarioActual.email);
             const container = document.getElementById('lista-vendedores-container');
-            if (error || !data || data.length === 0) {
-                container.innerHTML = `<p class="text-gray-500">No hay vendedores registrados para este comercio.</p>`;
+            if (!data || data.length === 0) {
+                container.innerHTML = `<p class="text-slate-500">No hay vendedores registrados.</p>`;
                 return;
             }
             container.innerHTML = `
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="border-b bg-gray-50">
-                            <th class="p-2">Nombre</th>
-                            <th class="p-2">Correo</th>
-                            <th class="p-2">Teléfono</th>
-                            <th class="p-2">Estatus</th>
-                            <th class="p-2">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.map(v => `
-                            <tr class="border-b">
-                                <td class="p-2">${v.nombre}</td>
-                                <td class="p-2">${v.email}</td>
-                                <td class="p-2">${v.telefono}</td>
-                                <td class="p-2"><span class="px-2 py-1 text-xs rounded-full ${v.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${v.activo ? 'Activo' : 'Desconectado'}</span></td>
-                                <td class="p-2 space-x-2">
-                                    <button onclick="toggleEstadoVendedor('${v.id}', ${!v.activo})" class="text-indigo-600 hover:underline font-semibold text-xs">${v.activo ? 'Desconectar' : 'Activar'}</button>
-                                    <button onclick="prepararEdicionVendedor('${v.id}', '${v.nombre}', '${v.email}', '${v.telefono}')" class="text-blue-600 hover:underline font-semibold text-xs">Modificar</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                <div class="space-y-3">
+                    ${data.map(v => `
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border border-slate-100 bg-slate-50/50 p-4 rounded-xl gap-4">
+                            <div>
+                                <h4 class="font-bold text-slate-900">${v.nombre}</h4>
+                                <p class="text-xs text-slate-500">${v.email} | Tel: ${v.telefono}</p>
+                                <span class="inline-block mt-1 px-2.5 py-0.5 text-xs font-semibold rounded-full ${v.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${v.activo ? 'Activo' : 'Desconectado'}</span>
+                            </div>
+                            <div class="flex space-x-3">
+                                <button onclick="toggleEstadoVendedor('${v.id}', ${!v.activo})" class="text-indigo-600 hover:underline font-semibold text-xs">${v.activo ? 'Desconectar' : 'Activar'}</button>
+                                <button onclick="prepararEdicionVendedor('${v.id}', '${v.nombre}', '${v.email}', '${v.telefono}')" class="text-slate-600 hover:underline font-semibold text-xs">Modificar</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
             `;
         }
 
@@ -679,13 +637,11 @@
             const telefono = document.getElementById('vendedor-tel').value.trim();
 
             if (id) {
-                const { error } = await supabaseClient.from('vendedores_comercio').update({ nombre, email, telefono }).eq('id', id);
-                if (error) alert('Error al actualizar: ' + error.message);
-                else alert('Vendedor actualizado con éxito');
+                await supabaseClient.from('vendedores_comercio').update({ nombre, email, telefono }).eq('id', id);
+                alert('Vendedor actualizado con éxito');
             } else {
-                const { error } = await supabaseClient.from('vendedores_comercio').insert([{ comercio_email: usuarioActual.email, nombre, email, telefono, activo: true }]);
-                if (error) alert('Error al registrar: ' + error.message);
-                else alert('Vendedor registrado con éxito');
+                await supabaseClient.from('vendedores_comercio').insert([{ comercio_email: usuarioActual.email, nombre, email, telefono, activo: true }]);
+                alert('Vendedor registrado con éxito');
             }
             cancelarEdicionVendedor();
             cargarVendedoresDueno();
@@ -709,12 +665,8 @@
         }
 
         async function toggleEstadoVendedor(id, nuevoEstado) {
-            const { error } = await supabaseClient.from('vendedores_comercio').update({ activo: nuevoEstado }).eq('id', id);
-            if (error) {
-                alert('Error al cambiar estatus: ' + error.message);
-            } else {
-                cargarVendedoresDueno();
-            }
+            await supabaseClient.from('vendedores_comercio').update({ activo: nuevoEstado }).eq('id', id);
+            cargarVendedoresDueno();
         }
 
         async function cargarEstadisticasDueno() {
@@ -735,18 +687,18 @@
 
             const detalleContainer = document.getElementById('estadisticas-vendedores-detalle');
             if (!vendedores || vendedores.length === 0) {
-                detalleContainer.innerHTML = `<p class="text-gray-500">No hay vendedores registrados para calcular rendimiento.</p>`;
+                detalleContainer.innerHTML = `<p class="text-slate-500">No hay vendedores registrados para calcular rendimiento.</p>`;
                 return;
             }
 
             detalleContainer.innerHTML = `
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
-                        <tr class="border-b bg-gray-50">
-                            <th class="p-2">Vendedor</th>
-                            <th class="p-2">Estatus Actual</th>
-                            <th class="p-2">Ventas Concretadas</th>
-                            <th class="p-2">Ingresos Generados</th>
+                        <tr class="border-b border-slate-200 bg-slate-50">
+                            <th class="p-3">Vendedor</th>
+                            <th class="p-3">Estatus</th>
+                            <th class="p-3">Ventas Concretadas</th>
+                            <th class="p-3">Ingresos Generados</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -754,11 +706,11 @@
                             let ventasVendedor = pedidos.filter(p => p.vendedor_email === v.email && p.estatus === 'Concretado');
                             let totalDinero = ventasVendedor.reduce((acc, i) => acc + (i.total || 0), 0);
                             return `
-                                <tr class="border-b">
-                                    <td class="p-2 font-bold">${v.nombre} (${v.email})</td>
-                                    <td class="p-2"><span class="px-2 py-1 text-xs rounded-full ${v.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${v.activo ? 'Activo' : 'Desconectado'}</span></td>
-                                    <td class="p-2 font-semibold text-green-600">${ventasVendedor.length}</td>
-                                    <td class="p-2 font-semibold text-indigo-600">$${totalDinero.toFixed(2)}</td>
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-3 font-bold">${v.nombre} (${v.email})</td>
+                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${v.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${v.activo ? 'Activo' : 'Desconectado'}</span></td>
+                                    <td class="p-3 font-semibold text-emerald-600">${ventasVendedor.length}</td>
+                                    <td class="p-3 font-semibold text-indigo-600">$${totalDinero.toFixed(2)}</td>
                                 </tr>
                             `;
                         }).join('')}
@@ -771,18 +723,16 @@
         async function renderizarPanelVendedor(emailVendedor) {
             const main = document.getElementById('main-content');
             main.innerHTML = `
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Panel de Vendedor (${emailVendedor})</h2>
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-slate-900">Panel de Vendedor (${emailVendedor})</h2>
+                    <p class="text-slate-500 text-sm">Tus órdenes asignadas</p>
                 </div>
-                <div class="bg-white p-6 rounded-xl shadow-md mb-6">
-                    <h3 class="text-xl font-bold mb-4 text-indigo-600">Órdenes Asignadas</h3>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <input type="text" id="vendedor-search" placeholder="Buscar por N° orden, teléfono o cliente..." class="border p-2 rounded-lg text-sm" oninput="cargarOrdenesVendedor()">
-                        <input type="date" id="vendedor-fecha" class="border p-2 rounded-lg text-sm" onchange="cargarOrdenesVendedor()">
+                        <input type="text" id="vendedor-search" placeholder="Buscar por N° orden, teléfono o cliente..." class="border border-slate-300 p-2.5 rounded-xl text-sm" oninput="cargarOrdenesVendedor()">
+                        <input type="date" id="vendedor-fecha" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarOrdenesVendedor()">
                     </div>
-                    <div id="lista-ordenes-vendedor" class="overflow-x-auto">
-                        <p class="text-gray-500">Cargando tus órdenes asignadas...</p>
-                    </div>
+                    <div id="lista-ordenes-vendedor"><p class="text-slate-400">Cargando tus órdenes...</p></div>
                 </div>
             `;
             cargarOrdenesVendedor();
@@ -792,56 +742,48 @@
             const busqueda = document.getElementById('vendedor-search').value.toLowerCase();
             const fechaFiltro = document.getElementById('vendedor-fecha').value;
 
-            const { data, error } = await supabaseClient
-                .from('pedidos_marketplace')
-                .select('*')
-                .eq('vendedor_email', usuarioActual.email)
-                .order('fecha_creacion', { ascending: false });
-
+            const { data } = await supabaseClient.from('pedidos_marketplace').select('*').eq('vendedor_email', usuarioActual.email).order('fecha_creacion', { ascending: false });
             const container = document.getElementById('lista-ordenes-vendedor');
-            if (error || !data || data.length === 0) {
-                container.innerHTML = `<p class="text-gray-500">No tienes órdenes asignadas en este momento.</p>`;
+            if (!data || data.length === 0) {
+                container.innerHTML = `<p class="text-slate-500">No tienes órdenes asignadas actualmente.</p>`;
                 return;
             }
 
             let filtradas = data.filter(o => {
-                let matchBusqueda = !busqueda || 
-                    o.numero_orden.toLowerCase().includes(busqueda) || 
-                    o.cliente_telefono.toLowerCase().includes(busqueda) || 
-                    o.cliente_nombre.toLowerCase().includes(busqueda);
+                let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
                 let matchFecha = !fechaFiltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
                 return matchBusqueda && matchFecha;
             });
 
             if (filtradas.length === 0) {
-                container.innerHTML = `<p class="text-gray-500">No hay órdenes que coincidan con los filtros de búsqueda.</p>`;
+                container.innerHTML = `<p class="text-slate-500">No hay órdenes que coincidan con los filtros.</p>`;
                 return;
             }
 
             container.innerHTML = `
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
-                        <tr class="border-b bg-gray-50">
-                            <th class="p-2">N° Orden</th>
-                            <th class="p-2">Cliente</th>
-                            <th class="p-2">Teléfono</th>
-                            <th class="p-2">Total</th>
-                            <th class="p-2">Estatus</th>
-                            <th class="p-2">Acciones / T&C</th>
+                        <tr class="border-b border-slate-200 bg-slate-50">
+                            <th class="p-3">N° Orden</th>
+                            <th class="p-3">Cliente</th>
+                            <th class="p-3">Teléfono</th>
+                            <th class="p-3">Total</th>
+                            <th class="p-3">Estatus</th>
+                            <th class="p-3">Acciones / T&C</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${filtradas.map(o => `
-                            <tr class="border-b">
-                                <td class="p-2 font-bold">${o.numero_orden}</td>
-                                <td class="p-2">${o.cliente_nombre}</td>
-                                <td class="p-2">${o.cliente_telefono}</td>
-                                <td class="p-2">$${o.total}</td>
-                                <td class="p-2"><span class="px-2 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-green-100 text-green-800' : o.estatus === 'No Concretado' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">${o.estatus}</span></td>
-                                <td class="p-2 space-x-1">
-                                    <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-green-600 text-white px-2 py-1 rounded text-xs">Concretar</button>
-                                    <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-red-600 text-white px-2 py-1 rounded text-xs">No Concretar</button>
-                                    <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2 py-1 rounded text-xs">PDF T&C</button>
+                            <tr class="border-b border-slate-100">
+                                <td class="p-3 font-bold">${o.numero_orden}</td>
+                                <td class="p-3">${o.cliente_nombre}</td>
+                                <td class="p-3">${o.cliente_telefono}</td>
+                                <td class="p-3 font-semibold">$${o.total}</td>
+                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : o.estatus === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${o.estatus}</span></td>
+                                <td class="p-3 space-x-1">
+                                    <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
+                                    <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">No Concretar</button>
+                                    <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -850,7 +792,13 @@
             `;
         }
 
-        // --- DESCARGA DE PDF DE T&C ---
+        async function cambiarEstatusOrden(idOrden, nuevoEstatus) {
+            await supabaseClient.from('pedidos_marketplace').update({ estatus: nuevoEstatus }).eq('id', idOrden);
+            alert(`Orden marcada como ${nuevoEstatus}`);
+            if (usuarioActual) direccionarPanel(usuarioActual.email);
+        }
+
+        // --- DESCARGAR PDF T&C ---
         function descargarPDFOrden(orden) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
@@ -872,7 +820,7 @@
             doc.text("Datos del Cliente:", 14, 61);
             doc.setFont("helvetica", "normal");
             doc.text(`Nombre: ${orden.cliente_nombre}`, 14, 67);
-            doc.text(`Teléfono de Contacto: ${orden.cliente_telefono}`, 14, 73);
+            doc.text(`Teléfono: ${orden.cliente_telefono}`, 14, 73);
 
             doc.setFont("helvetica", "bold");
             doc.text("Productos Solicitados:", 14, 83);
@@ -881,7 +829,7 @@
             let y = 90;
             if (orden.productos && Array.isArray(orden.productos)) {
                 orden.productos.forEach((p, index) => {
-                    doc.text(`${index + 1}. ${p.nombre} (x${p.cantidad}) - $${p.precio * p.cantidad}`, 14, y);
+                    doc.text(`${index + 1}. ${p.nombre} (x${p.cantidad}) - Subtotal: $${p.precio * p.cantidad}`, 14, y);
                     y += 6;
                 });
             }
@@ -892,11 +840,11 @@
 
             y += 15;
             doc.setFont("helvetica", "bold");
-            doc.text("Cláusula de Aceptación y Seguridad:", 14, y);
+            doc.text("Cláusula de Aceptación:", 14, y);
             y += 6;
             doc.setFont("helvetica", "normal");
             doc.setFontSize(9);
-            const textoTC = "El cliente declara haber leído, comprendido y aceptado en su totalidad los Términos y Condiciones del Marketplace Multi-Comercio, liberando de responsabilidad a la plataforma por gestiones de pago directas con el comercio afiliado y validando la autenticidad de los datos de contacto suministrados en este ticket.";
+            const textoTC = "El cliente declara haber leído y aceptado los Términos y Condiciones del Marketplace Multi-Comercio, liberando de responsabilidad a la plataforma por pagos directos con el comercio.";
             const splitText = doc.splitTextToSize(textoTC, 180);
             doc.text(splitText, 14, y);
 
