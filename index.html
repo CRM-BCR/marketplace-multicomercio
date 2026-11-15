@@ -285,7 +285,7 @@
             }
         }
 
-        // --- PANEL DE ADMINISTRADOR (CON SIDEBAR) ---
+        // --- PANEL DE ADMINISTRADOR (CON SIDEBAR Y SEGURIDAD Y USUARIOS) ---
         function renderizarPanelAdmin() {
             const main = document.getElementById('main-content');
             main.innerHTML = `
@@ -299,6 +299,7 @@
                         <h3 class="font-bold text-slate-900 text-sm uppercase px-2 tracking-wider text-slate-400 mb-1">Navegación</h3>
                         <button onclick="cambiarTabAdmin('panel')" id="btn-admin-panel" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-indigo-600 text-white transition shadow-sm">Panel del Administrador</button>
                         <button onclick="cambiarTabAdmin('auditorias')" id="btn-admin-auditorias" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Auditorías</button>
+                        <button onclick="cambiarTabAdmin('usuarios')" id="btn-admin-usuarios" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Seguridad y Usuarios</button>
                     </div>
                     <!-- Contenido dinámico del Admin -->
                     <div class="flex-1" id="admin-content-area"></div>
@@ -308,7 +309,7 @@
         }
 
         function cambiarTabAdmin(tab) {
-            ['panel', 'auditorias'].forEach(t => {
+            ['panel', 'auditorias', 'usuarios'].forEach(t => {
                 const btn = document.getElementById(`btn-admin-${t}`);
                 if (btn) {
                     btn.className = t === tab ? 
@@ -364,7 +365,142 @@
                 `;
                 cargarAuditoriaAdmin();
                 cargarLogAuditoriaAdmin();
+            } else if (tab === 'usuarios') {
+                area.innerHTML = `
+                    <div class="space-y-6">
+                        <!-- Tarjetas de Conteo por Rol -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                <p class="text-slate-500 text-sm">Administradores</p>
+                                <h4 class="text-2xl font-bold text-indigo-600" id="count-admin">1</h4>
+                            </div>
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                <p class="text-slate-500 text-sm">Dueños de Negocio</p>
+                                <h4 class="text-2xl font-bold text-emerald-600" id="count-duenos">2</h4>
+                            </div>
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                <p class="text-slate-500 text-sm">Vendedores Registrados</p>
+                                <h4 class="text-2xl font-bold text-amber-600" id="count-vendedores">0</h4>
+                            </div>
+                        </div>
+
+                        <!-- Gestión y Listado de Usuarios -->
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-bold text-slate-900">Gestión de Usuarios y Roles</h3>
+                                <button onclick="abrirModalUsuario()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm hover:bg-indigo-700 transition">+ Nuevo Usuario</button>
+                            </div>
+                            <div id="tabla-usuarios-sistema" class="overflow-x-auto"><p class="text-slate-400">Cargando usuarios...</p></div>
+                        </div>
+                    </div>
+                `;
+                cargarGestionUsuariosAdmin();
             }
+        }
+
+        async function cargarGestionUsuariosAdmin() {
+            const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*');
+            const container = document.getElementById('tabla-usuarios-sistema');
+            if (!container) return;
+
+            // Definir lista base de usuarios fijos (Admin y Dueños) + Vendedores de la BD
+            let listaUsuarios = [
+                { id: 'admin-1', nombre: 'Elio Ravelo (Admin)', email: 'elio.ravelo19@gmail.com', rol: 'Administrador', comercio: 'Global', telefono: 'N/A', activo: true },
+                { id: 'dueño-1', nombre: 'Dueño Negocio 01', email: 'negocio.01@gmail.com', rol: 'Dueño de Negocio', comercio: 'negocio.01@gmail.com', telefono: 'N/A', activo: true },
+                { id: 'dueño-2', nombre: 'Dueño Negocio 02', email: 'negocio.02@gmail.com', rol: 'Dueño de Negocio', comercio: 'negocio.02@gmail.com', telefono: 'N/A', activo: true }
+            ];
+
+            if (vendedores) {
+                vendedores.forEach(v => {
+                    listaUsuarios.push({
+                        id: v.id,
+                        nombre: v.nombre,
+                        email: v.email,
+                        rol: 'Vendedor',
+                        comercio: v.comercio_email,
+                        telefono: v.telefono,
+                        activo: v.activo
+                    });
+                });
+            }
+
+            // Actualizar contadores
+            document.getElementById('count-admin').innerText = listaUsuarios.filter(u => u.rol === 'Administrador').length;
+            document.getElementById('count-duenos').innerText = listaUsuarios.filter(u => u.rol === 'Dueño de Negocio').length;
+            document.getElementById('count-vendedores').innerText = listaUsuarios.filter(u => u.rol === 'Vendedor').length;
+
+            container.innerHTML = `
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50">
+                            <th class="p-3">Nombre</th>
+                            <th class="p-3">Correo / Usuario</th>
+                            <th class="p-3">Rol</th>
+                            <th class="p-3">Comercio / Asignación</th>
+                            <th class="p-3">Teléfono</th>
+                            <th class="p-3">Estatus</th>
+                            <th class="p-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${listaUsuarios.map(u => `
+                            <tr class="border-b border-slate-100">
+                                <td class="p-3 font-bold">${u.nombre}</td>
+                                <td class="p-3">${u.email}</td>
+                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full font-semibold ${u.rol === 'Administrador' ? 'bg-purple-100 text-purple-800' : u.rol === 'Dueño de Negocio' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'}">${u.rol}</span></td>
+                                <td class="p-3 text-slate-600">${u.comercio}</td>
+                                <td class="p-3">${u.telefono}</td>
+                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${u.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+                                <td class="p-3 space-x-1">
+                                    ${u.rol === 'Vendedor' ? `
+                                        <button onclick="editarUsuarioVendedor('${u.id}', '${u.nombre}', '${u.email}', '${u.telefono}')" class="text-indigo-600 hover:underline font-semibold text-xs">Modificar</button>
+                                        <button onclick="eliminarUsuarioVendedor('${u.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
+                                    ` : `<span class="text-xs text-slate-400">Sistema Fijo</span>`}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function eliminarUsuarioVendedor(id) {
+            if (confirm('¿Estás seguro de eliminar este usuario vendedor?')) {
+                await supabaseClient.from('vendedores_comercio').delete().eq('id', id);
+                alert('Usuario eliminado con éxito');
+                cargarGestionUsuariosAdmin();
+            }
+        }
+
+        function editarUsuarioVendedor(id, nombre, email, telefono) {
+            const nuevoNombre = prompt('Modificar Nombre:', nombre);
+            const nuevoTel = prompt('Modificar Teléfono:', telefono);
+            if (nuevoNombre && nuevoTel) {
+                supabaseClient.from('vendedores_comercio').update({ nombre: nuevoNombre, telefono: nuevoTel }).eq('id', id).then(() => {
+                    alert('Usuario actualizado correctamente');
+                    cargarGestionUsuariosAdmin();
+                });
+            }
+        }
+
+        function abrirModalUsuario() {
+            const comercio = prompt('Ingrese el correo del comercio al que pertenecerá este vendedor (ej. negocio.01@gmail.com):');
+            if (!comercio) return;
+            const nombre = prompt('Ingrese el nombre del vendedor:');
+            if (!nombre) return;
+            const email = prompt('Ingrese el correo electrónico del vendedor:');
+            if (!email) return;
+            const telefono = prompt('Ingrese el teléfono / WhatsApp del vendedor:');
+            if (!telefono) return;
+
+            supabaseClient.from('vendedores_comercio').insert([{ comercio_email: comercio, nombre, email, telefono, activo: true }]).then(({ error }) => {
+                if (error) {
+                    alert('Error al registrar usuario: ' + error.message);
+                } else {
+                    alert('¡Nuevo usuario vendedor registrado con éxito!');
+                    cargarGestionUsuariosAdmin();
+                }
+            });
         }
 
         async function adminGuardarProducto(e) {
