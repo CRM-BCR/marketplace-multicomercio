@@ -378,11 +378,19 @@
                 await _supabase.from('productos_marketplace').update({ stock: nuevoStock }).eq('id', item.id);
             }
 
-            if (vendedorAsignado) {
+            if (vendedorAsignado && vendedorAsignado.telefono) {
                 const detalleTexto = itemsComercio.map(i => `- ${i.cantidad}x ${i.nombre_producto} ($${i.precio})`).join('%0A');
                 const mensajeWhatsApp = `Hola! Nuevo pedido Ticket #${nroTicket}%0A*Cliente:* ${nombreCliente}%0A*Teléfono:* ${telefonoCliente}%0A*Productos:*%0A${detalleTexto}%0A*Total:* $${totalComercio.toFixed(2)}%0A%0APor favor gestionar el envío y pago.`;
                 
-                window.open(`https://wa.me/${vendedorAsignado.telefono.replace(/[^0-9]/g, '')}?text=${mensajeWhatsApp}`, '_blank');
+                // Normalización robusta del número de WhatsApp del vendedor
+                let telVendedor = vendedorAsignado.telefono.replace(/[^0-9]/g, '');
+                if (telVendedor.startsWith('0') && telVendedor.length === 11) {
+                    telVendedor = '58' + telVendedor.substring(1);
+                }
+
+                window.open(`https://wa.me/${telVendedor}?text=${mensajeWhatsApp}`, '_blank');
+            } else {
+                alert('¡Pedido registrado con éxito! (Nota: No hay vendedores activos disponibles para redirección automática a WhatsApp).');
             }
 
             alert('¡Pedido realizado con éxito y asignado al vendedor correspondiente!');
