@@ -51,7 +51,7 @@
         </div>
     </div>
 
-    <!-- Modal Estilo CRM Dinámico para Registrar / Modificar Usuario -->
+    <!-- Modal Estilo CRM Dinámico para Registrar / Modificar Usuario / Vendedor -->
     <div id="modal-usuario-crm" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center z-50">
         <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-2xl w-full max-w-lg relative border border-slate-700">
             <button onclick="cerrarModalUsuario()" class="absolute top-4 right-4 text-slate-400 hover:text-white font-bold text-xl">&times;</button>
@@ -59,7 +59,7 @@
             
             <form id="form-usuario-crm" onsubmit="guardarUsuarioModal(event)" class="space-y-4">
                 <input type="hidden" id="usuario-edit-id">
-                <div>
+                <div id="contenedor-rol-select">
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Rol del Usuario</label>
                     <select id="modal-rol" onchange="onCambioRolModal()" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         <option value="Vendedor">Vendedor</option>
@@ -85,7 +85,7 @@
                 </div>
                 <div class="flex justify-end space-x-3 pt-3 border-t border-slate-800">
                     <button type="button" onclick="cerrarModalUsuario()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-sm font-semibold transition">Cancelar</button>
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-sm font-semibold transition shadow-md shadow-indigo-900/50">Guardar Usuario</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-sm font-semibold transition shadow-md shadow-indigo-900/50">Guardar</button>
                 </div>
             </form>
         </div>
@@ -98,6 +98,7 @@
 
         let carrito = [];
         let usuarioActual = null;
+        let datosSesionRol = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             verTiendaPublica();
@@ -108,16 +109,36 @@
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
                 usuarioActual = session.user;
-                actualizarNavAuth();
-                direccionarPanel(usuarioActual.email);
+                await determinarRolYDireccionar(usuarioActual.email);
             }
+        }
+
+        async function determinarRolYDireccionar(email) {
+            // Buscamos en la tabla vendedores_comercio
+            const { data } = await supabaseClient.from('vendedores_comercio').select('*').eq('email', email).maybeSingle();
+            
+            if (data) {
+                datosSesionRol = data;
+            } else {
+                // Fallback por defecto si no está en la tabla pero es admin conocido
+                if (email === 'elio.ravelo19@gmail.com') {
+                    datosSesionRol = { rol: 'Administrador', comercio: 'Global', email: email };
+                } else if (email.startsWith('negocio.')) {
+                    datosSesionRol = { rol: 'Dueño de Negocio', comercio: email, email: email };
+                } else {
+                    datosSesionRol = { rol: 'Vendedor', comercio: 'polar', email: email };
+                }
+            }
+
+            actualizarNavAuth();
+            direccionarPanelSegunRol();
         }
 
         function actualizarNavAuth() {
             const container = document.getElementById('auth-nav-container');
             if (usuarioActual) {
                 container.innerHTML = `
-                    <span class="text-sm mr-2 font-medium text-slate-300">${usuarioActual.email}</span>
+                    <span class="text-sm mr-2 font-medium text-slate-300">${usuarioActual.email} (${datosSesionRol.rol})</span>
                     <button onclick="cerrarSesion()" class="bg-rose-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-rose-500 transition shadow-sm">Salir</button>
                 `;
             }
@@ -138,13 +159,13 @@
                 usuarioActual = data.user;
             }
             cerrarModalAuth();
-            actualizarNavAuth();
-            direccionarPanel(usuarioActual.email);
+            await determinarRolYDireccionar(usuarioActual.email);
         }
 
         async function cerrarSesion() {
             await supabaseClient.auth.signOut();
             usuarioActual = null;
+            datosSesionRol = null;
             location.reload();
         }
 
@@ -260,10 +281,11 @@
 
             const comercioEmail = carrito[0].comercio_email || 'negocio.01@gmail.com';
             
+            // Buscar vendedores activos para este comercio
             const { data: vendedores } = await supabaseClient
                 .from('vendedores_comercio')
                 .select('*')
-                .eq('comercio_email', comercioEmail)
+                .eq('comercio', comercioEmail)
                 .eq('activo', true);
 
             let vendedorAsignado = null;
@@ -310,18 +332,18 @@
             if (telVendedor) {
                 window.location.href = `https://wa.me/${telVendedor}?text=${mensajeWhatsApp}`;
             } else {
-                alert(`Pedido ${numeroOrden} registrado con éxito.`);
+                alert(`Pedido ${numeroOrden} registrado con éxito (Sin vendedor activo para asignar automáticamente).`);
                 verTiendaPublica();
             }
         }
 
-        function direccionarPanel(email) {
-            if (email === 'elio.ravelo19@gmail.com') {
+        function direccionarPanelSegunRol() {
+            if (datosSesionRol.rol === 'Administrador' || usuarioActual.email === 'elio.ravelo19@gmail.com') {
                 renderizarPanelAdmin();
-            } else if (email.startsWith('negocio.')) {
-                renderizarPanelDueno(email);
+            } else if (datosSesionRol.rol === 'Dueño de Negocio' || usuarioActual.email.startsWith('negocio.')) {
+                renderizarPanelDueno(datosSesionRol);
             } else {
-                renderizarPanelVendedor(email);
+                renderizarPanelVendedor(datosSesionRol.email);
             }
         }
 
@@ -350,8 +372,7 @@
             const select = document.getElementById(selectId);
             if (!select) return;
 
-            // Valores por defecto fijos + Dueños iniciales
-            let comerciosSet = new Set(['negocio.01@gmail.com', 'negocio.02@gmail.com']);
+            let comerciosSet = new Set(['negocio.01@gmail.com', 'negocio.02@gmail.com', 'polar']);
 
             const { data } = await supabaseClient.from('vendedores_comercio').select('*');
             if (data) {
@@ -510,7 +531,7 @@
                                 <td class="p-3 space-x-2">
                                     ${u.id !== 'admin-1' && u.id !== 'dueño-1' && u.id !== 'dueño-2' ? `
                                         <button onclick="abrirModalEditarUsuario('${u.id}', '${u.nombre}', '${u.email}', '${u.telefono}', '${u.comercio}', '${u.rol}')" class="text-indigo-600 hover:underline font-semibold text-xs">Modificar</button>
-                                        <button onclick="eliminarUsuarioVendedor('${u.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
+                                        <button onclick="eliminarUsuarioSistema('${u.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
                                     ` : `<span class="text-xs text-slate-400">Sistema Fijo</span>`}
                                 </td>
                             </tr>
@@ -535,14 +556,26 @@
             }
         }
 
-        function abrirModalNuevoUsuario() {
+        function abrirModalNuevoUsuario(comercioSugerido = '') {
             document.getElementById('usuario-edit-id').value = '';
             document.getElementById('modal-usuario-titulo').innerText = 'Registrar Nuevo Usuario';
-            document.getElementById('modal-rol').value = 'Vendedor';
-            document.getElementById('modal-comercio').value = '';
+            document.getElementById('modal-rol').value = comercioSugerido ? 'Vendedor' : 'Vendedor';
+            document.getElementById('modal-comercio').value = comercioSugerido || '';
             document.getElementById('modal-nombre').value = '';
             document.getElementById('modal-email').value = '';
             document.getElementById('modal-telefono').value = '';
+            
+            // Si es dueño llamando a crear vendedor, ocultamos o fijamos el rol
+            if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
+                document.getElementById('modal-comercio').value = datosSesionRol.comercio || datosSesionRol.email;
+                document.getElementById('modal-comercio').readOnly = true;
+                document.getElementById('modal-rol').value = 'Vendedor';
+                document.getElementById('contenedor-rol-select').style.display = 'none';
+            } else {
+                document.getElementById('modal-comercio').readOnly = false;
+                document.getElementById('contenedor-rol-select').style.display = 'block';
+            }
+
             onCambioRolModal();
             document.getElementById('modal-usuario-crm').classList.remove('hidden');
         }
@@ -555,6 +588,15 @@
             document.getElementById('modal-nombre').value = nombre || '';
             document.getElementById('modal-email').value = email || '';
             document.getElementById('modal-telefono').value = telefono || '';
+
+            if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
+                document.getElementById('modal-comercio').readOnly = true;
+                document.getElementById('contenedor-rol-select').style.display = 'none';
+            } else {
+                document.getElementById('modal-comercio').readOnly = false;
+                document.getElementById('contenedor-rol-select').style.display = 'block';
+            }
+
             onCambioRolModal();
             document.getElementById('modal-usuario-crm').classList.remove('hidden');
         }
@@ -566,7 +608,7 @@
         async function guardarUsuarioModal(e) {
             e.preventDefault();
             const id = document.getElementById('usuario-edit-id').value;
-            const rol = document.getElementById('modal-rol').value;
+            const rol = (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') ? 'Vendedor' : document.getElementById('modal-rol').value;
             const comercio = document.getElementById('modal-comercio').value.trim();
             const nombre = document.getElementById('modal-nombre').value.trim();
             const email = document.getElementById('modal-email').value.trim();
@@ -590,7 +632,7 @@
                 } else {
                     alert('¡Usuario actualizado con éxito!');
                     cerrarModalUsuario();
-                    cargarGestionUsuariosAdmin();
+                    refrescarPanelActual();
                 }
             } else {
                 const { error } = await supabaseClient.from('vendedores_comercio').insert([datosUsuario]);
@@ -599,20 +641,28 @@
                 } else {
                     alert('¡Nuevo usuario registrado con éxito!');
                     cerrarModalUsuario();
-                    cargarGestionUsuariosAdmin();
+                    refrescarPanelActual();
                 }
             }
         }
 
-        async function eliminarUsuarioVendedor(id) {
+        async function eliminarUsuarioSistema(id) {
             if (confirm('¿Estás seguro de eliminar este usuario?')) {
                 const { error } = await supabaseClient.from('vendedores_comercio').delete().eq('id', id);
                 if (error) {
                     alert('Error al eliminar: ' + error.message);
                 } else {
                     alert('Usuario eliminado con éxito');
-                    cargarGestionUsuariosAdmin();
+                    refrescarPanelActual();
                 }
+            }
+        }
+
+        function refrescarPanelActual() {
+            if (datosSesionRol.rol === 'Administrador' || usuarioActual.email === 'elio.ravelo19@gmail.com') {
+                cambiarTabAdmin('usuarios');
+            } else if (datosSesionRol.rol === 'Dueño de Negocio') {
+                cambiarTabDueno('panel-dueno');
             }
         }
 
@@ -705,111 +755,175 @@
             `;
         }
 
-        // --- PANEL DE DUEÑO DE NEGOCIO ---
-        function renderizarPanelDueno(emailDueno) {
+        // --- PANEL DE DUEÑO DE NEGOCIO ( CON BARRA LATERAL ) ---
+        function renderizarPanelDueno(duenoObj) {
             const main = document.getElementById('main-content');
+            const comercioId = duenoObj.comercio || duenoObj.email;
+
             main.innerHTML = `
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <div>
-                        <h2 class="text-2xl font-bold text-slate-900">Panel Dueño (${emailDueno})</h2>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="cambiarTabDueno('catalogo')" id="btn-tab-catalogo" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm shadow-sm">Catálogo & Stock</button>
-                        <button onclick="cambiarTabDueno('ordenes')" id="btn-tab-ordenes" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm">Consultar Órdenes</button>
-                        <button onclick="cambiarTabDueno('vendedores')" id="btn-tab-vendedores" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm">Gestionar Vendedores</button>
-                        <button onclick="cambiarTabDueno('estadisticas')" id="btn-tab-estadisticas" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm">Ventas & Estadísticas</button>
-                    </div>
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-slate-900">Panel Dueño de Negocio (${comercioId})</h2>
+                    <p class="text-slate-500 text-sm">Administración y gestión de vendedores, stock y estadísticas de ventas</p>
                 </div>
-                <div id="dueno-content-area"></div>
+                <div class="flex flex-col md:flex-row gap-6">
+                    <!-- Barra Lateral del Dueño -->
+                    <div class="w-full md:w-64 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col space-y-2 h-fit">
+                        <h3 class="font-bold text-slate-900 text-sm uppercase px-2 tracking-wider text-slate-400 mb-1">Menú Dueño</h3>
+                        <button onclick="cambiarTabDueno('panel-dueno')" id="btn-dueno-panel-dueno" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-indigo-600 text-white transition shadow-sm">Panel del Dueño</button>
+                        <button onclick="cambiarTabDueno('catalogo')" id="btn-dueno-catalogo" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Catálogo & Stock</button>
+                        <button onclick="cambiarTabDueno('estadisticas')" id="btn-dueno-estadisticas" class="w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Ventas y Estadísticas</button>
+                    </div>
+                    <!-- Área de Contenido Dinámico -->
+                    <div class="flex-1" id="dueno-content-area"></div>
+                </div>
             `;
-            cambiarTabDueno('catalogo');
+            cambiarTabDueno('panel-dueno');
         }
 
         function cambiarTabDueno(tab) {
-            ['catalogo', 'ordenes', 'vendedores', 'estadisticas'].forEach(t => {
-                const btn = document.getElementById(`btn-tab-${t}`);
+            ['panel-dueno', 'catalogo', 'estadisticas'].forEach(t => {
+                const btn = document.getElementById(`btn-dueno-${t}`);
                 if (btn) {
-                    btn.className = t === tab ? 'px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-sm shadow-sm' : 'px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm';
+                    btn.className = t === tab ? 
+                        'w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-indigo-600 text-white transition shadow-sm' : 
+                        'w-full text-left px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition';
                 }
             });
 
             const area = document.getElementById('dueno-content-area');
-            if (tab === 'catalogo') {
+            const comercioId = datosSesionRol.comercio || datosSesionRol.email;
+
+            if (tab === 'panel-dueno') {
                 area.innerHTML = `
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                        <h3 class="text-xl font-bold mb-4 text-slate-900">Mi Catálogo y Control de Stock</h3>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-900">Gestión de Vendedores</h3>
+                                <p class="text-slate-500 text-xs">Crea, modifica, activa/inactiva o elimina los vendedores asignados a tu comercio.</p>
+                            </div>
+                            <button onclick="abrirModalNuevoUsuario('${comercioId}')" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:bg-indigo-700 transition">+ Nuevo Vendedor</button>
+                        </div>
+                        <div id="lista-vendedores-dueno-container" class="overflow-x-auto"><p class="text-slate-400">Cargando vendedores...</p></div>
+                    </div>
+                `;
+                cargarVendedoresPanelDueno();
+            } else if (tab === 'catalogo') {
+                area.innerHTML = `
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+                        <h3 class="text-xl font-bold text-slate-900">Mi Catálogo y Control de Stock</h3>
                         <div id="catalogo-stock-container"><p class="text-slate-400">Cargando productos...</p></div>
                     </div>
                 `;
                 cargarCatalogoDueno();
-            } else if (tab === 'ordenes') {
-                area.innerHTML = `
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                        <h3 class="text-xl font-bold mb-4 text-slate-900">Consultar Órdenes y T&C</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <input type="text" id="dueno-search" placeholder="Buscar por N° orden, teléfono o cliente..." class="border border-slate-300 p-2.5 rounded-xl text-sm" oninput="cargarOrdenesDueno()">
-                            <input type="date" id="dueno-fecha" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarOrdenesDueno()">
-                        </div>
-                        <div id="lista-ordenes-dueno" class="overflow-x-auto"><p class="text-slate-400">Cargando órdenes...</p></div>
-                    </div>
-                `;
-                cargarOrdenesDueno();
-            } else if (tab === 'vendedores') {
-                area.innerHTML = `
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
-                        <h3 class="font-bold mb-3 text-indigo-600 text-lg" id="titulo-form-vendedor">Registrar Nuevo Vendedor</h3>
-                        <form onsubmit="guardarVendedorDueno(event)" class="space-y-3">
-                            <input type="hidden" id="vendedor-edit-id">
-                            <input type="text" id="vendedor-nombre" placeholder="Nombre del Vendedor" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
-                            <input type="email" id="vendedor-email" placeholder="Correo Electrónico" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
-                            <input type="text" id="vendedor-tel" placeholder="Teléfono WhatsApp (ej. 04121234567)" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
-                            <div class="flex space-x-2 pt-2">
-                                <button type="submit" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-sm">Guardar Vendedor</button>
-                                <button type="button" onclick="cancelarEdicionVendedor()" id="btn-cancelar-edit" class="bg-slate-400 text-white px-4 py-2.5 rounded-xl font-semibold text-sm hidden">Cancelar</button>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                        <h3 class="text-xl font-bold mb-4 text-slate-900">Lista de Vendedores</h3>
-                        <div id="lista-vendedores-container"><p class="text-slate-400">Cargando vendedores...</p></div>
-                    </div>
-                `;
-                cargarVendedoresDueno();
             } else if (tab === 'estadisticas') {
                 area.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                            <p class="text-slate-500 text-sm">Ventas Efectivas</p>
-                            <h4 class="text-2xl font-bold text-emerald-600" id="stat-efectivas">0</h4>
+                    <div class="space-y-6">
+                        <!-- Métricas Principales -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                <p class="text-slate-500 text-sm">Ventas Totales</p>
+                                <h4 class="text-2xl font-bold text-indigo-600" id="stat-totales">0</h4>
+                            </div>
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                <p class="text-slate-500 text-sm">Ingresos Totales ($)</p>
+                                <h4 class="text-2xl font-bold text-emerald-600" id="stat-ingresos">$0.00</h4>
+                            </div>
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                <p class="text-slate-500 text-sm">Ventas Abiertas (Pendientes)</p>
+                                <h4 class="text-2xl font-bold text-amber-600" id="stat-abiertas">0</h4>
+                            </div>
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                <p class="text-slate-500 text-sm">Ventas Cerradas</p>
+                                <h4 class="text-2xl font-bold text-purple-600" id="stat-cerradas">0</h4>
+                            </div>
                         </div>
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                            <p class="text-slate-500 text-sm">Ventas en Proceso</p>
-                            <h4 class="text-2xl font-bold text-amber-600" id="stat-proceso">0</h4>
+
+                        <!-- Órdenes Pendientes por Asignar / Vendedores Ocupados -->
+                        <div id="alerta-ordenes-pendientes" class="bg-amber-50 border border-amber-200 p-4 rounded-2xl hidden">
+                            <h4 class="font-bold text-amber-800 text-sm mb-1">⚠️ Órdenes sin Vendedor Activo / Pendientes por Asignar</h4>
+                            <p class="text-xs text-amber-700 mb-2">Hay órdenes registradas donde los vendedores estaban ocupados o inactivos. Puedes reasignarlas o gestionarlas aquí:</p>
+                            <div id="tabla-ordenes-pendientes-asignar" class="overflow-x-auto"></div>
                         </div>
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                            <p class="text-slate-500 text-sm">No Concretadas</p>
-                            <h4 class="text-2xl font-bold text-rose-600" id="stat-noconcretado">0</h4>
+
+                        <!-- Filtros y Listado de Órdenes -->
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <h3 class="text-xl font-bold text-slate-900">Detalle de Órdenes y Estatus</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    <button onclick="filtrarVentasDueno('todas')" id="btn-filtro-todas" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold">Todas</button>
+                                    <button onclick="filtrarVentasDueno('Pendiente')" id="btn-filtro-abiertas" class="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200">Abiertas (Pendientes)</button>
+                                    <button onclick="filtrarVentasDueno('Cerradas')" id="btn-filtro-cerradas" class="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200">Cerradas (Concretadas/No)</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input type="text" id="dueno-search" placeholder="Buscar por N° orden, cliente o teléfono..." class="border border-slate-300 p-2.5 rounded-xl text-sm" oninput="cargarEstadisticasDueno()">
+                                <input type="date" id="dueno-fecha" class="border border-slate-300 p-2.5 rounded-xl text-sm" onchange="cargarEstadisticasDueno()">
+                            </div>
+                            <div id="lista-ordenes-estadisticas" class="overflow-x-auto"><p class="text-slate-400">Cargando órdenes...</p></div>
                         </div>
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                            <p class="text-slate-500 text-sm">Ingresos Totales</p>
-                            <h4 class="text-2xl font-bold text-indigo-600" id="stat-ingresos">$0.00</h4>
-                        </div>
-                    </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                        <h3 class="text-xl font-bold mb-4 text-slate-900">Rendimiento Detallado por Vendedor</h3>
-                        <div id="estadisticas-vendedores-detalle"><p class="text-slate-400">Calculando estadísticas...</p></div>
                     </div>
                 `;
                 cargarEstadisticasDueno();
             }
         }
 
+        async function cargarVendedoresPanelDueno() {
+            const comercioId = datosSesionRol.comercio || datosSesionRol.email;
+            const { data } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio', comercioId);
+            const container = document.getElementById('lista-vendedores-dueno-container');
+            if (!container) return;
+
+            if (!data || data.length === 0) {
+                container.innerHTML = `<p class="text-slate-500 py-4">No tienes vendedores registrados todavía. Haz clic en "+ Nuevo Vendedor" para agregar uno.</p>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50">
+                            <th class="p-3">Nombre</th>
+                            <th class="p-3">Correo Electrónico</th>
+                            <th class="p-3">Teléfono / WhatsApp</th>
+                            <th class="p-3">Estatus</th>
+                            <th class="p-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(v => `
+                            <tr class="border-b border-slate-100">
+                                <td class="p-3 font-bold">${v.nombre}</td>
+                                <td class="p-3">${v.email}</td>
+                                <td class="p-3">${v.telefono || 'N/A'}</td>
+                                <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${v.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${v.activo ? 'Activo' : 'Inactivo'}</span></td>
+                                <td class="p-3 space-x-2">
+                                    <button onclick="toggleEstadoVendedorDueno('${v.id}', ${!v.activo})" class="text-indigo-600 hover:underline font-semibold text-xs">${v.activo ? 'Inactivar' : 'Activar'}</button>
+                                    <button onclick="abrirModalEditarUsuario('${v.id}', '${v.nombre}', '${v.email}', '${v.telefono}', '${v.comercio}', '${v.rol || 'Vendedor'}')" class="text-amber-600 hover:underline font-semibold text-xs">Modificar</button>
+                                    <button onclick="eliminarUsuarioSistema('${v.id}')" class="text-rose-600 hover:underline font-semibold text-xs">Eliminar</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function toggleEstadoVendedorDueno(id, nuevoEstado) {
+            const { error } = await supabaseClient.from('vendedores_comercio').update({ activo: nuevoEstado }).eq('id', id);
+            if (error) {
+                alert('Error al actualizar estatus: ' + error.message);
+            } else {
+                cargarVendedoresPanelDueno();
+            }
+        }
+
         async function cargarCatalogoDueno() {
-            const { data } = await supabaseClient.from('productos_marketplace').select('*').eq('comercio_email', usuarioActual.email);
+            const comercioId = datosSesionRol.comercio || datosSesionRol.email;
+            const { data } = await supabaseClient.from('productos_marketplace').select('*').eq('comercio_email', comercioId);
             const container = document.getElementById('catalogo-stock-container');
             if (!container) return;
             if (!data || data.length === 0) {
-                container.innerHTML = `<p class="text-slate-500">No hay productos en tu inventario.</p>`;
+                container.innerHTML = `<p class="text-slate-500">No hay productos en tu inventario. El administrador global puede cargarte productos.</p>`;
                 return;
             }
             container.innerHTML = `
@@ -827,7 +941,6 @@
                                 <div class="flex items-center space-x-2 w-full sm:w-auto">
                                     <input type="number" id="input-stock-${p.id}" value="${stockProd}" class="w-24 border border-slate-300 p-1.5 rounded-lg text-sm bg-white">
                                     <button onclick="actualizarStockDueno('${p.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Guardar Stock</button>
-                                    <button onclick="eliminarProductoDueno('${p.id}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Eliminar</button>
                                 </div>
                             </div>
                         `;
@@ -843,33 +956,89 @@
             cargarCatalogoDueno();
         }
 
-        async function eliminarProductoDueno(id) {
-            if (confirm('¿Estás seguro de eliminar este producto?')) {
-                await supabaseClient.from('productos_marketplace').delete().eq('id', id);
-                cargarCatalogoDueno();
-            }
+        let filtroVentasActual = 'todas';
+        function filtrarVentasDueno(tipo) {
+            filtroVentasActual = tipo;
+            ['todas', 'abiertas', 'cerradas'].forEach(t => {
+                const btn = document.getElementById(`btn-filtro-${t}`);
+                if (btn) {
+                    btn.className = (t === (tipo === 'Pendiente' ? 'abiertas' : tipo === 'Cerradas' ? 'cerradas' : 'todas')) ?
+                        'px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold' :
+                        'px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200';
+                }
+            });
+            cargarEstadisticasDueno();
         }
 
-        async function cargarOrdenesDueno() {
-            const busqueda = document.getElementById('dueno-search')?.value.toLowerCase() || '';
-            const fechaFiltro = document.getElementById('dueno-fecha')?.value || '';
+        async function cargarEstadisticasDueno() {
+            const comercioId = datosSesionRol.comercio || datosSesionRol.email;
+            const { data: pedidos } = await supabaseClient.from('pedidos_marketplace').select('*').eq('comercio_email', comercioId).order('fecha_creacion', { ascending: false });
+            
+            if (!pedidos) return;
 
-            const { data } = await supabaseClient.from('pedidos_marketplace').select('*').eq('comercio_email', usuarioActual.email).order('fecha_creacion', { ascending: false });
-            const container = document.getElementById('lista-ordenes-dueno');
-            if (!container) return;
-            if (!data || data.length === 0) {
-                container.innerHTML = `<p class="text-slate-500">No hay órdenes registradas.</p>`;
-                return;
+            let totalVentas = pedidos.length;
+            let ingresosTotales = pedidos.filter(p => p.estatus === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
+            let ventasAbiertas = pedidos.filter(p => p.estatus === 'Pendiente').length;
+            let ventasCerradas = pedidos.filter(p => p.estatus === 'Concretado' || p.estatus === 'No Concretado').length;
+
+            document.getElementById('stat-totales').innerText = totalVentas;
+            document.getElementById('stat-ingresos').innerText = `$${ingresosTotales.toFixed(2)}`;
+            document.getElementById('stat-abiertas').innerText = ventasAbiertas;
+            document.getElementById('stat-cerradas').innerText = ventasCerradas;
+
+            // Detectar órdenes sin asignar o con vendedores ocupados/sin asignar
+            const ordenesSinAsignar = pedidos.filter(p => !p.vendedor_email || p.vendedor_email === 'Sin asignar');
+            const alertaBox = document.getElementById('alerta-ordenes-pendientes');
+            const tablaPendientes = document.getElementById('tabla-ordenes-pendientes-asignar');
+            
+            if (ordenesSinAsignar.length > 0 && alertaBox && tablaPendientes) {
+                alertaBox.classList.remove('hidden');
+                tablaPendientes.innerHTML = `
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-amber-200 bg-amber-100/50">
+                                <th class="p-2">N° Orden</th>
+                                <th class="p-2">Cliente</th>
+                                <th class="p-2">Teléfono</th>
+                                <th class="p-2">Total</th>
+                                <th class="p-2">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${ordenesSinAsignar.map(o => `
+                                <tr class="border-b border-amber-200">
+                                    <td class="p-2 font-bold">${o.numero_orden}</td>
+                                    <td class="p-2">${o.cliente_nombre}</td>
+                                    <td class="p-2">${o.cliente_telefono}</td>
+                                    <td class="p-2 font-semibold">$${o.total}</td>
+                                    <td class="p-2"><button onclick="asignarVendedorOrdenModal('${o.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs font-semibold">Asignar Vendedor</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else if (alertaBox) {
+                alertaBox.classList.add('hidden');
             }
 
-            let filtradas = data.filter(o => {
+            // Filtrar y renderizar listado principal
+            const busqueda = document.getElementById('dueno-search')?.value.toLowerCase() || '';
+            const fechaFiltro = document.getElementById('dueno-fecha')?.value || '';
+            const container = document.getElementById('lista-ordenes-estadisticas');
+            if (!container) return;
+
+            let filtradas = pedidos.filter(o => {
+                let matchFiltro = true;
+                if (filtroVentasActual === 'Pendiente') matchFiltro = (o.estatus === 'Pendiente');
+                if (filtroVentasActual === 'Cerradas') matchFiltro = (o.estatus === 'Concretado' || o.estatus === 'No Concretado');
+
                 let matchBusqueda = !busqueda || o.numero_orden.toLowerCase().includes(busqueda) || o.cliente_telefono.toLowerCase().includes(busqueda) || o.cliente_nombre.toLowerCase().includes(busqueda);
                 let matchFecha = !fechaFiltro || (o.fecha_creacion && o.fecha_creacion.startsWith(fechaFiltro));
-                return matchBusqueda && matchFecha;
+                return matchFiltro && matchBusqueda && matchFecha;
             });
 
             if (filtradas.length === 0) {
-                container.innerHTML = `<p class="text-slate-500">No hay órdenes que coincidan con los filtros.</p>`;
+                container.innerHTML = `<p class="text-slate-500 py-4">No hay órdenes que coincidan con el filtro seleccionado.</p>`;
                 return;
             }
 
@@ -880,7 +1049,7 @@
                             <th class="p-3">N° Orden</th>
                             <th class="p-3">Cliente</th>
                             <th class="p-3">Teléfono</th>
-                            <th class="p-3">Vendedor</th>
+                            <th class="p-3">Vendedor Asignado</th>
                             <th class="p-3">Total</th>
                             <th class="p-3">Estatus</th>
                             <th class="p-3">Acciones / T&C</th>
@@ -897,7 +1066,7 @@
                                 <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${o.estatus === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : o.estatus === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${o.estatus}</span></td>
                                 <td class="p-3 space-x-1">
                                     <button onclick="cambiarEstatusOrden('${o.id}', 'Concretado')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Concretar</button>
-                                    <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">No Concretar</button>
+                                    <button onclick="cambiarEstatusOrden('${o.id}', 'No Concretado')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs font-semibold">Cerrar/No</button>
                                     <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-semibold">PDF T&C</button>
                                 </td>
                             </tr>
@@ -907,129 +1076,26 @@
             `;
         }
 
-        async function cargarVendedoresDueno() {
-            const { data } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio_email', usuarioActual.email);
-            const container = document.getElementById('lista-vendedores-container');
-            if (!container) return;
-            if (!data || data.length === 0) {
-                container.innerHTML = `<p class="text-slate-500">No hay vendedores registrados.</p>`;
-                return;
-            }
-            container.innerHTML = `
-                <div class="space-y-3">
-                    ${data.map(v => `
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border border-slate-100 bg-slate-50/50 p-4 rounded-xl gap-4">
-                            <div>
-                                <h4 class="font-bold text-slate-900">${v.nombre}</h4>
-                                <p class="text-xs text-slate-500">${v.email} | Tel: ${v.telefono}</p>
-                                <span class="inline-block mt-1 px-2.5 py-0.5 text-xs font-semibold rounded-full ${v.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${v.activo ? 'Activo' : 'Desconectado'}</span>
-                            </div>
-                            <div class="flex space-x-3">
-                                <button onclick="toggleEstadoVendedor('${v.id}', ${!v.activo})" class="text-indigo-600 hover:underline font-semibold text-xs">${v.activo ? 'Desconectar' : 'Activar'}</button>
-                                <button onclick="prepararEdicionVendedor('${v.id}', '${v.nombre}', '${v.email}', '${v.telefono}')" class="text-slate-600 hover:underline font-semibold text-xs">Modificar</button>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        async function guardarVendedorDueno(e) {
-            e.preventDefault();
-            const id = document.getElementById('vendedor-edit-id').value;
-            const nombre = document.getElementById('vendedor-nombre').value.trim();
-            const email = document.getElementById('vendedor-email').value.trim();
-            const telefono = document.getElementById('vendedor-tel').value.trim();
-
-            const datos = { comercio_email: usuarioActual.email, comercio: usuarioActual.email, dueno_email: usuarioActual.email, nombre, email, telefono, rol: 'Vendedor', activo: true };
-
-            if (id) {
-                await supabaseClient.from('vendedores_comercio').update(datos).eq('id', id);
-                alert('Vendedor actualizado con éxito');
-            } else {
-                await supabaseClient.from('vendedores_comercio').insert([datos]);
-                alert('Vendedor registrado con éxito');
-            }
-            cancelarEdicionVendedor();
-            cargarVendedoresDueno();
-        }
-
-        function prepararEdicionVendedor(id, nombre, email, telefono) {
-            document.getElementById('vendedor-edit-id').value = id;
-            document.getElementById('vendedor-nombre').value = nombre;
-            document.getElementById('vendedor-email').value = email;
-            document.getElementById('vendedor-tel').value = telefono;
-            document.getElementById('titulo-form-vendedor').innerText = 'Modificar Vendedor';
-            document.getElementById('btn-cancelar-edit').classList.remove('hidden');
-        }
-
-        function cancelarEdicionVendedor() {
-            document.getElementById('vendedor-edit-id').value = '';
-            document.getElementById('titulo-form-vendedor').innerText = 'Registrar Nuevo Vendedor';
-            document.getElementById('btn-cancelar-edit').classList.add('hidden');
-            const form = document.querySelector('#dueno-content-area form');
-            if (form) form.reset();
-        }
-
-        async function toggleEstadoVendedor(id, nuevoEstado) {
-            await supabaseClient.from('vendedores_comercio').update({ activo: nuevoEstado }).eq('id', id);
-            cargarVendedoresDueno();
-        }
-
-        async function cargarEstadisticasDueno() {
-            const { data: pedidos } = await supabaseClient.from('pedidos_marketplace').select('*').eq('comercio_email', usuarioActual.email);
-            const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio_email', usuarioActual.email);
-
-            if (!pedidos) return;
-
-            let efectivas = pedidos.filter(p => p.estatus === 'Concretado').length;
-            let proceso = pedidos.filter(p => p.estatus === 'Pendiente').length;
-            let noConcretado = pedidos.filter(p => p.estatus === 'No Concretado').length;
-            let ingresos = pedidos.filter(p => p.estatus === 'Concretado').reduce((acc, i) => acc + (i.total || 0), 0);
-
-            const elEfectivas = document.getElementById('stat-efectivas');
-            const elProceso = document.getElementById('stat-proceso');
-            const elNoConcretado = document.getElementById('stat-noconcretado');
-            const elIngresos = document.getElementById('stat-ingresos');
-
-            if (elEfectivas) elEfectivas.innerText = efectivas;
-            if (elProceso) elProceso.innerText = proceso;
-            if (elNoConcretado) elNoConcretado.innerText = noConcretado;
-            if (elIngresos) elIngresos.innerText = `$${ingresos.toFixed(2)}`;
-
-            const detalleContainer = document.getElementById('estadisticas-vendedores-detalle');
-            if (!detalleContainer) return;
+        async function asignarVendedorOrdenModal(idOrden) {
+            const comercioId = datosSesionRol.comercio || datosSesionRol.email;
+            const { data: vendedores } = await supabaseClient.from('vendedores_comercio').select('*').eq('comercio', comercioId).eq('activo', true);
             if (!vendedores || vendedores.length === 0) {
-                detalleContainer.innerHTML = `<p class="text-slate-500">No hay vendedores registrados para calcular rendimiento.</p>`;
+                alert('No tienes vendedores activos para asignar. Por favor activa un vendedor primero.');
                 return;
             }
-
-            detalleContainer.innerHTML = `
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50">
-                            <th class="p-3">Vendedor</th>
-                            <th class="p-3">Estatus</th>
-                            <th class="p-3">Ventas Concretadas</th>
-                            <th class="p-3">Ingresos Generados</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${vendedores.map(v => {
-                            let ventasVendedor = pedidos.filter(p => p.vendedor_email === v.email && p.estatus === 'Concretado');
-                            let totalDinero = ventasVendedor.reduce((acc, i) => acc + (i.total || 0), 0);
-                            return `
-                                <tr class="border-b border-slate-100">
-                                    <td class="p-3 font-bold">${v.nombre} (${v.email})</td>
-                                    <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${v.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${v.activo ? 'Activo' : 'Desconectado'}</span></td>
-                                    <td class="p-3 font-semibold text-emerald-600">${ventasVendedor.length}</td>
-                                    <td class="p-3 font-semibold text-indigo-600">$${totalDinero.toFixed(2)}</td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            `;
+            let listaStr = vendedores.map((v, i) => `${i + 1}. ${v.nombre} (${v.email})`).join('\n');
+            let seleccion = prompt(`Selecciona el número de vendedor a asignar:\n${listaStr}`);
+            if (seleccion) {
+                let index = parseInt(seleccion) - 1;
+                if (vendedores[index]) {
+                    let vendedorElegido = vendedores[index].email;
+                    await supabaseClient.from('pedidos_marketplace').update({ vendedor_email: vendedorElegido }).eq('id', idOrden);
+                    alert('¡Vendedor asignado con éxito!');
+                    cargarEstadisticasDueno();
+                } else {
+                    alert('Selección inválida.');
+                }
+            }
         }
 
         // --- PANEL DE VENDEDOR ---
@@ -1109,7 +1175,11 @@
         async function cambiarEstatusOrden(idOrden, nuevoEstatus) {
             await supabaseClient.from('pedidos_marketplace').update({ estatus: nuevoEstatus }).eq('id', idOrden);
             alert(`Orden marcada como ${nuevoEstatus}`);
-            if (usuarioActual) direccionarPanel(usuarioActual.email);
+            if (datosSesionRol && datosSesionRol.rol === 'Dueño de Negocio') {
+                cargarEstadisticasDueno();
+            } else if (usuarioActual) {
+                direccionarPanelSegunRol();
+            }
         }
 
         // --- DESCARGAR PDF T&C ---
