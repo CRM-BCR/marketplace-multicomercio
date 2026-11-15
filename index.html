@@ -195,6 +195,7 @@
                 const comercioProd = p.comercio_email || p.comercio || p.dueno_email || 'Comercio General';
                 const precioProd = p.precio || p.costo || 0;
                 const stockProd = p.stock !== undefined ? p.stock : (p.cantidad_stock || 0);
+                const imagenProd = p.imagen || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3';
 
                 const productoLimpio = {
                     id: p.id,
@@ -202,19 +203,27 @@
                     precio: precioProd,
                     stock: stockProd,
                     comercio_email: comercioProd,
-                    descripcion: descProd
+                    descripcion: descProd,
+                    imagen: imagenProd
                 };
 
                 return `
-                    <div class="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                    <div class="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
                         <div>
-                            <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full">${comercioProd}</span>
-                            <h3 class="font-bold text-lg text-slate-900 mt-3">${nombreProd}</h3>
-                            <p class="text-slate-600 text-sm mt-1">${descProd}</p>
-                            <p class="text-indigo-600 font-extrabold text-2xl mt-4">$${precioProd}</p>
-                            <p class="text-xs text-slate-400 mt-1">Stock disponible: ${stockProd}</p>
+                            <div class="h-48 w-full overflow-hidden bg-slate-100 relative">
+                                <img src="${imagenProd}" alt="${nombreProd}" class="w-full h-full object-cover">
+                                <span class="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 bg-white/90 backdrop-blur-sm text-indigo-600 rounded-full shadow-sm">${comercioProd}</span>
+                            </div>
+                            <div class="p-5">
+                                <h3 class="font-bold text-lg text-slate-900">${nombreProd}</h3>
+                                <p class="text-slate-600 text-sm mt-1">${descProd}</p>
+                                <p class="text-indigo-600 font-extrabold text-2xl mt-4">$${precioProd}</p>
+                                <p class="text-xs text-slate-400 mt-1">Stock disponible: ${stockProd}</p>
+                            </div>
                         </div>
-                        <button onclick='agregarAlCarrito(${JSON.stringify(productoLimpio)})' class="mt-5 w-full bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Agregar al Carrito</button>
+                        <div class="p-5 pt-0">
+                            <button onclick='agregarAlCarrito(${JSON.stringify(productoLimpio)})' class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Agregar al Carrito</button>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -414,6 +423,7 @@
                             <input type="text" id="adm-nombre" placeholder="Nombre del Producto" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
                             <input type="number" id="adm-precio" placeholder="Precio ($)" step="0.01" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
                             <input type="number" id="adm-stock" placeholder="Stock Inicial" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
+                            <input type="url" id="adm-imagen" placeholder="URL de la Imagen (ej. https://...)" required class="w-full border border-slate-300 p-2.5 rounded-xl text-sm">
                             <textarea id="adm-desc" placeholder="Descripción" class="w-full border border-slate-300 p-2.5 rounded-xl text-sm"></textarea>
                             <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-sm">Guardar Producto</button>
                         </form>
@@ -682,9 +692,10 @@
             const nombre = document.getElementById('adm-nombre').value;
             const precio = parseFloat(document.getElementById('adm-precio').value);
             const stock = parseInt(document.getElementById('adm-stock').value);
+            const imagen = document.getElementById('adm-imagen').value.trim();
             const descripcion = document.getElementById('adm-desc').value;
 
-            const { error } = await supabaseClient.from('productos_marketplace').insert([{ comercio_email, nombre, precio, stock, descripcion }]);
+            const { error } = await supabaseClient.from('productos_marketplace').insert([{ comercio_email, nombre, precio, stock, imagen, descripcion }]);
             if (error) {
                 alert('Error al guardar: ' + error.message);
             } else {
@@ -879,7 +890,6 @@
 
         async function cargarVendedoresPanelDueno() {
             const comercioId = datosSesionRol.comercio || datosSesionRol.email;
-            // Solo filtramos los usuarios con rol 'Vendedor' que pertenecen a este comercio
             const { data } = await supabaseClient
                 .from('vendedores_comercio')
                 .select('*')
@@ -948,11 +958,15 @@
                         const nombreProd = p.nombre || p.titulo || p.nombre_producto || 'Producto';
                         const precioProd = p.precio || p.costo || 0;
                         const stockProd = p.stock !== undefined ? p.stock : 0;
+                        const imagenProd = p.imagen || '';
                         return `
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border border-slate-100 bg-slate-50/50 p-4 rounded-xl gap-4">
-                                <div>
-                                    <h4 class="font-bold text-slate-900">${nombreProd}</h4>
-                                    <p class="text-xs text-slate-500">Precio: $${precioProd} | Stock actual: <span class="font-bold text-indigo-600">${stockProd}</span></p>
+                                <div class="flex items-center space-x-3">
+                                    ${imagenProd ? `<img src="${imagenProd}" class="w-12 h-12 rounded-lg object-cover border border-slate-200">` : ''}
+                                    <div>
+                                        <h4 class="font-bold text-slate-900">${nombreProd}</h4>
+                                        <p class="text-xs text-slate-500">Precio: $${precioProd} | Stock actual: <span class="font-bold text-indigo-600">${stockProd}</span></p>
+                                    </div>
                                 </div>
                                 <div class="flex items-center space-x-2 w-full sm:w-auto">
                                     <input type="number" id="input-stock-${p.id}" value="${stockProd}" class="w-24 border border-slate-300 p-1.5 rounded-lg text-sm bg-white">
@@ -1238,7 +1252,7 @@
 
             y += 15;
             doc.setFont("helvetica", "bold");
-            doc.text("Cláusula de Aceptación:", 14, y);
+            doc.text("Cláusula de aceptación:", 14, y);
             y += 6;
             doc.setFont("helvetica", "normal");
             doc.setFontSize(9);
