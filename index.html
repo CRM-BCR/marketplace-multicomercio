@@ -127,17 +127,27 @@
         }
 
         async function determinarRolYDireccionar(email) {
-            const { data } = await supabaseClient.from('vendedores_comercio').select('*').eq('email', email).maybeSingle();
+            const emailLimpio = email.toLowerCase().trim();
+            
+            // 1. Verificar si es Administrador fijo
+            if (emailLimpio === 'elio.ravelo19@gmail.com') {
+                datosSesionRol = { rol: 'Administrador', comercio_email: 'Global', email: emailLimpio };
+                actualizarNavAuth();
+                renderizarPanelAdmin();
+                return;
+            }
+
+            // 2. Consultar en la tabla de usuarios/vendedores en Supabase
+            const { data, error } = await supabaseClient.from('vendedores_comercio').select('*').ilike('email', emailLimpio).maybeSingle();
             
             if (data) {
                 datosSesionRol = data;
             } else {
-                if (email === 'elio.ravelo19@gmail.com') {
-                    datosSesionRol = { rol: 'Administrador', comercio_email: 'Global', email: email };
-                } else if (email.startsWith('negocio.')) {
-                    datosSesionRol = { rol: 'Dueño de Negocio', comercio_email: email, email: email };
+                // 3. Si no está en la tabla, verificar si es un Dueño de Negocio por nomenclatura o correo
+                if (emailLimpio.startsWith('negocio.') || emailLimpio.includes('antonio')) {
+                    datosSesionRol = { rol: 'Dueño de Negocio', comercio_email: 'polar', email: emailLimpio };
                 } else {
-                    datosSesionRol = { rol: 'Vendedor', comercio_email: 'polar', email: email };
+                    datosSesionRol = { rol: 'Vendedor', comercio_email: 'polar', email: emailLimpio };
                 }
             }
 
@@ -376,8 +386,11 @@
         }
 
         function direccionarPanelSegunRol() {
-            if (datosSesionRol.rol === 'Administrador' || usuarioActual.email === 'elio.ravelo19@gmail.com') {
+            const rolActual = datosSesionRol.rol ? datosSesionRol.rol.toLowerCase() : '';
+            if (rolActual.includes('admin') || usuarioActual.email === 'elio.ravelo19@gmail.com') {
                 renderizarPanelAdmin();
+            } else if (rolActual.includes('dueño') || rolActual.includes('dueno') || usuarioActual.email.includes('antonio')) {
+                renderizarPanelDueno(datosSesionRol);
             } else {
                 renderizarPanelDueno(datosSesionRol);
             }
@@ -607,7 +620,7 @@
 
                 let listaUsuarios = [
                     { id: 'admin-1', nombre: 'Elio Ravelo (Admin)', email: 'elio.ravelo19@gmail.com', rol: 'Administrador', comercio_email: 'Global', telefono: 'N/A', activo: true },
-                    { id: 'dueño-1', nombre: 'Dueño Polar', email: 'antonio.01@gmail.com', rol: 'Dueño de Negocio', comercio_email: 'polar', telefono: 'N/A', activo: true }
+                    { id: 'dueño-1', nombre: 'Dueño Antonio', email: 'antonio.01@gmail.com', rol: 'Dueño de Negocio', comercio_email: 'polar', telefono: 'N/A', activo: true }
                 ];
 
                 if (vendedores) {
@@ -842,7 +855,11 @@
                     alert('Error al eliminar orden: ' + error.message);
                 } else {
                     alert('Orden eliminada con éxito');
-                    cargarAuditoriaAdmin();
+                    if (datosSesionRol.rol === 'Administrador') {
+                        cargarAuditoriaAdmin();
+                    } else {
+                        cargarEstadisticasDueno();
+                    }
                 }
             }
         }
@@ -855,7 +872,11 @@
                         await supabaseClient.from('pedidos_marketplace').delete().eq('id', o.id);
                     }
                     alert('Todas las órdenes han sido eliminadas.');
-                    cargarAuditoriaAdmin();
+                    if (datosSesionRol.rol === 'Administrador') {
+                        cargarAuditoriaAdmin();
+                    } else {
+                        cargarEstadisticasDueno();
+                    }
                 } else {
                     alert('No hay órdenes para eliminar.');
                 }
@@ -929,7 +950,7 @@
                                         <td class="p-3"><span class="px-2.5 py-1 text-xs rounded-full ${estatusOrden === 'Concretado' ? 'bg-emerald-100 text-emerald-800' : estatusOrden === 'No Concretado' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${estatusOrden}</span></td>
                                         <td class="p-3 space-x-2">
                                             <button onclick='descargarPDFOrden(${JSON.stringify(o)})' class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">PDF T&C</button>
-                                            <button onclick="eliminarOrdenSupabase('${o.id}')" class="bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Eliminar</button>
+                                            <button onclick="eliminarOrdenSupabase('${o.id}')" class="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Eliminar</button>
                                         </td>
                                     </tr>
                                 `;
@@ -962,7 +983,7 @@
         function renderizarPanelDueno(usuarioObj) {
             const main = document.getElementById('main-content');
             const comercioId = usuarioObj.comercio_email || usuarioObj.dueno_email || 'polar';
-            const esVendedor = usuarioObj.rol === 'Vendedor';
+            const esVendedor = (usuarioObj.rol || '').toLowerCase() === 'vendedor';
 
             main.innerHTML = `
                 <div class="mb-6">
@@ -983,7 +1004,7 @@
         }
 
         function cambiarTabDueno(tab) {
-            const esVendedor = datosSesionRol.rol === 'Vendedor';
+            const esVendedor = (datosSesionRol.rol || '').toLowerCase() === 'vendedor';
             ['panel-dueno', 'catalogo', 'estadisticas'].forEach(t => {
                 const btn = document.getElementById(`btn-dueno-${t}`);
                 if (btn) {
@@ -1085,7 +1106,7 @@
 
                 const misVendedores = data ? data.filter(v => {
                     const c = (v.comercio_email || v.dueno_email || v.duenio_email || '').toLowerCase().trim();
-                    return (c === comercioId || c.includes(comercioId)) && v.rol === 'Vendedor';
+                    return (c === comercioId || c.includes(comercioId)) && (v.rol || '').toLowerCase() === 'vendedor';
                 }) : [];
 
                 if (misVendedores.length === 0) {
@@ -1249,7 +1270,7 @@
 
             try {
                 const comercioId = (datosSesionRol.comercio_email || datosSesionRol.dueno_email || 'polar').toLowerCase().trim();
-                const esVendedor = datosSesionRol.rol === 'Vendedor';
+                const esVendedor = (datosSesionRol.rol || '').toLowerCase() === 'vendedor';
                 const emailVendedor = (datosSesionRol.email || '').toLowerCase().trim();
 
                 const { data: todosLosPedidos, error } = await supabaseClient.from('pedidos_marketplace').select('*');
@@ -1299,7 +1320,7 @@
                         alertaBox.classList.remove('hidden');
                         tablaPendientes.innerHTML = `
                             <table class="w-full text-left border-collapse text-xs">
-                               <thead>
+                                <thead>
                                     <tr class="border-b border-amber-200 bg-amber-100/50">
                                         <th class="p-2">N° Orden</th>
                                         <th class="p-2">Cliente</th>
@@ -1445,7 +1466,7 @@
             
             const misVendedores = vendedores ? vendedores.filter(v => {
                 const c = (v.comercio_email || v.dueno_email || v.duenio_email || '').toLowerCase().trim();
-                return (c === comercioId || c.includes(comercioId)) && v.rol === 'Vendedor' && v.activo;
+                return (c === comercioId || c.includes(comercioId)) && (v.rol || '').toLowerCase() === 'vendedor' && v.activo;
             }) : [];
 
             if (misVendedores.length === 0) {
@@ -1473,7 +1494,7 @@
         }
 
         async function cambiarEstatusOrden(idOrden, nuevoEstatus) {
-            const esVendedor = datosSesionRol.rol === 'Vendedor';
+            const esVendedor = (datosSesionRol.rol || '').toLowerCase() === 'vendedor';
             if (esVendedor) {
                 const { data: ordenActual } = await supabaseClient.from('pedidos_marketplace').select('estatus').eq('id', idOrden).maybeSingle();
                 if (ordenActual && (ordenActual.estatus === 'Concretado' || ordenActual.estatus === 'No Concretado')) {
@@ -1487,7 +1508,7 @@
                 alert('Error al actualizar estatus: ' + error.message);
             } else {
                 alert(`Orden marcada como ${nuevoEstatus}`);
-                if (datosSesionRol.rol === 'Administrador' || usuarioActual.email === 'elio.ravelo19@gmail.com') {
+                if ((datosSesionRol.rol || '').toLowerCase().includes('admin') || usuarioActual.email === 'elio.ravelo19@gmail.com') {
                     cargarAuditoriaAdmin();
                 } else {
                     cargarEstadisticasDueno();
